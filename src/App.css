@@ -1,0 +1,190 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+}
+
+.app-body {
+  background-image: url('./assets/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  padding: 20px;
+}
+
+h1 {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 2rem;
+}
+
+/* Controls container for side-by-side layout */
+.controls-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 20px;
+  margin-bottom: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.controls-container p {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px 20px;
+  border: 2px solid #536fff;
+  border-radius: 8px;
+  margin: 0;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+  font-size: 1rem;
+}
+
+/* Custom file input styling */
+input[type="file"] {
+  background: rgba(0, 0, 0, 0.7);
+  color: #536fff;
+  padding: 10px 20px;
+  border: 2px solid #536fff;
+  border-radius: 8px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+  background: #536fff;
+  color: black;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+/* Button styling */
+button {
+  background: #536fff;
+  color: black;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  font-size: 1rem;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+button:hover:not(:disabled) {
+  background: #a3b2fb;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(255, 145, 0, 0.5);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Result table (6x7 grid) */
+.result-container {
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-table {
+  border-collapse: collapse;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #536fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 145, 0, 0.3);
+}
+
+.result-table td {
+  border: 1px solid #536fff;
+  color: #536fff;
+  font-weight: bold;
+  font-size: 1.1rem;
+  width: 2.4em;
+  height: 2.4em;
+  text-align: center;
+}
+
+.saved-note {
+  font-size: 0.8rem;
+  color: #cccccc;
+  margin-top: 0.75rem;
+}
+
+.saved-note code {
+  color: #a3b2fb;
+}
+
+/* Image container */
+.image-container {
+  margin: 1rem 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #536fff;
+  width: 80%;
+  max-width: 800px;
+}
+
+.image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Result bubble (errors / status) */
+.result-bubble-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.result-bubble {
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #536fff;
+  padding: 20px;
+  border-radius: 15px;
+  max-width: 300px;
+  border: 2px solid #536fff;
+  box-shadow: 0 0 15px rgba(255, 145, 0, 0.3);
+}
+
+.result-bubble-text {
+  font-size: 18px;
+  margin: 0;
+  font-weight: bold;
+}
+
+.copyright {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #666666;
+  font-size: 0.875rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
