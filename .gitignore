@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # Create React App production build
 /build
+
+# macOS
+.DS_Store

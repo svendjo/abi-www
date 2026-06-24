@@ -38,7 +38,7 @@ h1 {
 .controls-container p {
   background: rgba(0, 0, 0, 0.7);
   padding: 10px 20px;
-  border: 2px solid #536fff;
+  border: 2px solid #6a9651;
   border-radius: 8px;
   margin: 0;
   flex: 1;
@@ -50,9 +50,9 @@ h1 {
 /* Custom file input styling */
 input[type="file"] {
   background: rgba(0, 0, 0, 0.7);
-  color: #536fff;
+  color: #6a9651;
   padding: 10px 20px;
-  border: 2px solid #536fff;
+  border: 2px solid #6a9651;
   border-radius: 8px;
   cursor: pointer;
   flex: 1;
@@ -61,7 +61,7 @@ input[type="file"] {
 }
 
 input[type="file"]::-webkit-file-upload-button {
-  background: #536fff;
+  background: #6a9651;
   color: black;
   padding: 8px 16px;
   border: none;
@@ -73,7 +73,7 @@ input[type="file"]::-webkit-file-upload-button {
 
 /* Button styling */
 button {
-  background: #536fff;
+  background: #6a9651;
   color: black;
   padding: 12px 24px;
   border: none;
@@ -89,9 +89,9 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: #a3b2fb;
+  background: #aedd8f;
   transform: scale(1.05);
-  box-shadow: 0 0 15px rgba(255, 145, 0, 0.5);
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.5);
 }
 
 button:disabled {
@@ -110,15 +110,15 @@ button:disabled {
 .result-table {
   border-collapse: collapse;
   background: rgba(0, 0, 0, 0.8);
-  border: 2px solid #536fff;
+  border: 2px solid #6a9651;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 0 15px rgba(255, 145, 0, 0.3);
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.3);
 }
 
 .result-table td {
-  border: 1px solid #536fff;
-  color: #536fff;
+  border: 1px solid #6a9651;
+  color: #6a9651;
   font-weight: bold;
   font-size: 1.1rem;
   width: 2.4em;
@@ -133,7 +133,7 @@ button:disabled {
 }
 
 .saved-note code {
-  color: #a3b2fb;
+  color: #aedd8f;
 }
 
 /* Image container */
@@ -142,7 +142,7 @@ button:disabled {
   background: rgba(0, 0, 0, 0.7);
   padding: 10px;
   border-radius: 8px;
-  border: 2px solid #536fff;
+  border: 2px solid #6a9651;
   width: 80%;
   max-width: 800px;
 }
@@ -165,12 +165,12 @@ button:disabled {
 
 .result-bubble {
   background-color: rgba(0, 0, 0, 0.8);
-  color: #536fff;
+  color: #6a9651;
   padding: 20px;
   border-radius: 15px;
   max-width: 300px;
-  border: 2px solid #536fff;
-  box-shadow: 0 0 15px rgba(255, 145, 0, 0.3);
+  border: 2px solid #6a9651;
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.3);
 }
 
 .result-bubble-text {
@@ -187,4 +187,254 @@ button:disabled {
   color: #666666;
   font-size: 0.875rem;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Terms & conditions acceptance */
+.terms-acceptance {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 1.5rem;
+  padding: 10px 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.terms-acceptance input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #6a9651;
+  flex: none;
+}
+
+.terms-acceptance label {
+  cursor: pointer;
+}
+
+/* A button styled as an inline link (overrides the global button rule) */
+.terms-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  max-width: none;
+  flex: none;
+  font-size: inherit;
+  font-weight: bold;
+  text-transform: none;
+  color: #aedd8f;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.terms-link:hover:not(:disabled) {
+  background: none;
+  transform: none;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+/* Terms & conditions modal */
+.terms-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.terms-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  max-height: 80vh;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  box-shadow: 0 0 25px rgba(218, 165, 32, 0.3);
+  color: #ffffff;
+  text-align: left;
+}
+
+.terms-modal h2 {
+  margin: 0 0 16px;
+  text-align: center;
+  color: #6a9651;
+}
+
+.terms-body {
+  flex: 1;
+  overflow-y: auto;          /* scroll bar on the right when the text overflows */
+  padding-right: 14px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.terms-body h3 {
+  margin: 1.1em 0 0.3em;
+  font-size: 1rem;
+  color: #aedd8f;
+}
+
+.terms-body p {
+  margin: 0 0 0.8em;
+}
+
+.terms-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.terms-actions button {
+  flex: none;
+  min-width: 120px;
+  max-width: none;
+}
+
+.terms-actions .terms-secondary {
+  background: rgba(0, 0, 0, 0.7);
+  color: #6a9651;
+  border: 2px solid #6a9651;
+}
+
+.terms-actions .terms-secondary:hover:not(:disabled) {
+  background: rgba(106, 150, 81, 0.15);
+}
+
+/* Result modal (read result + thumbs-up/down feedback) */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.result-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  box-shadow: 0 0 25px rgba(218, 165, 32, 0.3);
+  color: #ffffff;
+}
+
+.result-modal h2 {
+  margin: 0 0 16px;
+  text-align: center;
+  color: #6a9651;
+}
+
+.result-table-wrap {
+  overflow: auto;
+  max-height: 55vh;
+  display: flex;
+  justify-content: center;
+}
+
+.result-prompt {
+  text-align: center;
+  margin: 18px 0 12px;
+  font-size: 1rem;
+}
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.result-actions button {
+  flex: none;
+  min-width: 110px;
+  max-width: none;
+}
+
+.result-actions .thumb {
+  min-width: 64px;
+  padding: 8px 16px;
+  font-size: 1.4rem;
+}
+
+.result-actions .result-secondary {
+  background: rgba(0, 0, 0, 0.7);
+  color: #6a9651;
+  border: 2px solid #6a9651;
+}
+
+.result-actions .result-secondary:hover:not(:disabled) {
+  background: rgba(106, 150, 81, 0.15);
+}
+
+.result-thanks {
+  text-align: center;
+  color: #8fffa0;
+  margin: 8px 0 16px;
+}
+
+.result-error {
+  text-align: center;
+  color: #ff9a9a;
+  margin-top: 10px;
+}
+
+/* Editable result table (thumbs-down correction) */
+.result-table.editable td {
+  padding: 2px;
+}
+
+.result-table.editable td input {
+  width: 3em;
+  min-width: 0;
+  max-width: none;
+  flex: none;
+  padding: 4px;
+  text-align: center;
+  font-size: 1rem;
+  text-transform: none;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #6a9651;
+  border-radius: 4px;
+}
+
+/* A die peeking out of every modal's top-left corner -- for fun. It straddles
+   the corner so it extends past both the top and left edges of the frame. */
+.terms-modal,
+.result-modal {
+  position: relative;
+}
+
+.terms-modal::before,
+.result-modal::before {
+  content: "🎲";
+  position: absolute;
+  top: -28px;
+  left: -28px;
+  font-size: 3.6rem;
+  line-height: 1;
+  transform: rotate(-18deg);
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
 }
