@@ -4,7 +4,9 @@ import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
 
 // Point these at the deployed server URLs when you ship it.
-const PREDICT_URL = 'http://localhost:8080/predict';
+const READ_URL = 'http://localhost:8080/read';
+const ACCEPT_URL = 'http://localhost:8080/accept';
+const DECLINE_URL = 'http://localhost:8080/decline';
 const SUBMIT_URL = 'http://localhost:8080/feedback';
 
 // Remember T&C acceptance in a cookie so the user only accepts once.
@@ -21,12 +23,6 @@ function storeTermsAcceptance(accepted) {
   } else {
     document.cookie = `${TERMS_COOKIE}=; max-age=0; path=/; SameSite=Lax`;
   }
-}
-
-// A printed label cell (e.g. "4's", "Total Score", or the "-" no-jackpot marker)
-// is not editable; numbers and blank cells are.
-function isLabelCell(value) {
-  return typeof value === 'string' && value.trim() !== '' && Number.isNaN(Number(value));
 }
 
 function csvCell(value) {
@@ -49,6 +45,19 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Heavier outline around the A6:H7 block -- the Score (col 6) and Jackpot (col 7)
+// columns, from the header row A down through the Balut row H.
+function blockBorder(r, c) {
+  if (r > 7 || (c !== 5 && c !== 6)) return undefined;
+  const heavy = '3px solid #d4af37';
+  const style = {};
+  if (r === 0) style.borderTop = heavy;
+  if (r === 7) style.borderBottom = heavy;
+  if (c === 5) style.borderLeft = heavy;
+  if (c === 6) style.borderRight = heavy;
+  return style;
+}
+
 const ResultTable = ({ grid }) => {
   return (
     <table className="result-table">
@@ -56,7 +65,7 @@ const ResultTable = ({ grid }) => {
         {grid.map((row, r) => (
           <tr key={r}>
             {row.map((value, c) => (
-              <td key={c}>{value}</td>
+              <td key={c} style={blockBorder(r, c)}>{value}</td>
             ))}
           </tr>
         ))}
@@ -65,23 +74,25 @@ const ResultTable = ({ grid }) => {
   );
 };
 
-const EditableTable = ({ editGrid, onCell }) => {
+// Only cells the server marks as handwritten (the `editable` mask) become inputs;
+// printed labels and always-blank cells stay static text.
+const EditableTable = ({ editGrid, editable, onCell }) => {
   return (
     <table className="result-table editable">
       <tbody>
         {editGrid.map((row, r) => (
           <tr key={r}>
             {row.map((value, c) => (
-              <td key={c}>
-                {isLabelCell(value) ? (
-                  value
-                ) : (
+              <td key={c} style={blockBorder(r, c)}>
+                {editable?.[r]?.[c] ? (
                   <input
                     type="text"
                     value={value}
                     onChange={(e) => onCell(r, c, e.target.value)}
                     aria-label={`row ${r + 1} column ${c + 1}`}
                   />
+                ) : (
+                  value
                 )}
               </td>
             ))}
@@ -101,6 +112,8 @@ function App() {
   const [showResult, setShowResult] = useState(false);
   const [feedbackMode, setFeedbackMode] = useState('none'); // 'none' | 'up' | 'down'
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
+  const [editable, setEditable] = useState(null);           // which cells may be edited
+  const [resultId, setResultId] = useState(null);           // server folder id for this read
   const [submitState, setSubmitState] = useState('idle');   // 'idle'|'saving'|'done'|'error'
   // Terms & conditions: initialise from the cookie so returning users skip it.
   const [accepted, setAccepted] = useState(hasAcceptedTerms);
@@ -157,7 +170,7 @@ function App() {
     formData.append('file', blob, 'image.jpg');
 
     try {
-      const response = await fetch(PREDICT_URL, {
+      const response = await fetch(READ_URL, {
         method: 'POST',
         body: formData,
       });
@@ -168,6 +181,10 @@ function App() {
 
       const data = await response.json();
       setGrid(data.grid);
+      setEditable(data.editable);
+      // Seed the editable copy now so the (always-mounted) edit panel has data.
+      setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
+      setResultId(data.id);
       setFeedbackMode('none');
       setSubmitState('idle');
       setShowResult(true);
@@ -181,11 +198,22 @@ function App() {
 
   const closeResult = () => setShowResult(false);
 
+  // Record the thumbs verdict on the server (fire-and-forget); the pan happens regardless.
+  const sendVerdict = (url) => {
+    if (!resultId) return;
+    const form = new FormData();
+    form.append('id', resultId);
+    fetch(url, { method: 'POST', body: form }).catch((e) => console.error('Verdict error:', e));
+  };
+
+  const thumbsUp = () => {
+    sendVerdict(ACCEPT_URL);
+    setFeedbackMode('up');   // pan right
+  };
+
   const thumbsDown = () => {
-    // Start from the read grid, as editable strings.
-    setEditGrid(grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
-    setSubmitState('idle');
-    setFeedbackMode('down');
+    sendVerdict(DECLINE_URL);
+    setFeedbackMode('down'); // pan left
   };
 
   const updateCell = (r, c, value) => {
@@ -212,7 +240,7 @@ function App() {
     setSubmitState('saving');
     try {
       const form = new FormData();
-      if (image) form.append('file', dataURLtoBlob(image), 'image.jpg');
+      form.append('id', resultId);
       form.append('grid', JSON.stringify(editGrid));
       const res = await fetch(SUBMIT_URL, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
@@ -293,96 +321,100 @@ function App() {
             className="result-modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="result-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="result-title">
-              {feedbackMode === 'down' ? 'Correct the scorecard' : 'Scorecard read'}
-            </h2>
+            <div className="result-viewport">
+              <div
+                className="result-track"
+                style={{
+                  transform: `translateX(${{ down: '0%', none: '-100%', up: '-200%' }[feedbackMode]})`,
+                }}
+              >
+                {/* Left panel: correct the scorecard (reached by thumbs-down / pan left) */}
+                <section className="result-panel">
+                  <h2>Correct the scorecard</h2>
+                  <div className="result-table-wrap">
+                    {editGrid && (
+                      <EditableTable editGrid={editGrid} editable={editable} onCell={updateCell} />
+                    )}
+                  </div>
+                  {submitState === 'done' ? (
+                    <>
+                      <p className="result-thanks">Thanks! Your corrections were submitted.</p>
+                      <div className="result-actions">
+                        <button type="button" className="result-secondary" onClick={closeResult}>
+                          Close
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="result-prompt">
+                        Fix any wrong numbers, then submit to help improve recognition.
+                      </p>
+                      <div className="result-actions">
+                        <button type="button" className="result-secondary" onClick={closeResult}>
+                          Close
+                        </button>
+                        <button
+                          type="button"
+                          onClick={submitCorrection}
+                          disabled={submitState === 'saving'}
+                        >
+                          {submitState === 'saving' ? 'Submitting…' : 'Submit'}
+                        </button>
+                      </div>
+                      {submitState === 'error' && (
+                        <p className="result-error">Could not submit. Please try again.</p>
+                      )}
+                    </>
+                  )}
+                </section>
 
-            <div className="result-table-wrap">
-              {feedbackMode === 'down' ? (
-                <EditableTable editGrid={editGrid} onCell={updateCell} />
-              ) : (
-                <ResultTable grid={grid} />
-              )}
-            </div>
-
-            {feedbackMode === 'none' && (
-              <>
-                <p className="result-prompt">Does this look right?</p>
-                <div className="result-actions">
-                  <button type="button" className="result-secondary" onClick={closeResult}>
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    className="thumb"
-                    onClick={() => setFeedbackMode('up')}
-                    aria-label="Looks right"
-                  >
-                    👍
-                  </button>
-                  <button
-                    type="button"
-                    className="thumb"
-                    onClick={thumbsDown}
-                    aria-label="Needs correction"
-                  >
-                    👎
-                  </button>
-                </div>
-              </>
-            )}
-
-            {feedbackMode === 'up' && (
-              <>
-                <p className="result-prompt">Great — download the result:</p>
-                <div className="result-actions">
-                  <button type="button" onClick={downloadCSV}>CSV</button>
-                  <button type="button" onClick={downloadXLSX}>Excel</button>
-                  <button type="button" className="result-secondary" onClick={closeResult}>
-                    Close
-                  </button>
-                </div>
-              </>
-            )}
-
-            {feedbackMode === 'down' && (
-              <>
-                <p className="result-prompt">
-                  Fix any wrong numbers, then submit to help improve recognition.
-                </p>
-                {submitState === 'done' ? (
-                  <>
-                    <p className="result-thanks">Thanks! Your corrections were submitted.</p>
-                    <div className="result-actions">
-                      <button type="button" onClick={closeResult}>Done</button>
-                    </div>
-                  </>
-                ) : (
+                {/* Center panel: the read result */}
+                <section className="result-panel">
+                  <h2>Scorecard read</h2>
+                  <div className="result-table-wrap">
+                    <ResultTable grid={grid} />
+                  </div>
+                  <p className="result-prompt">Does this look right?</p>
                   <div className="result-actions">
-                    <button
-                      type="button"
-                      className="result-secondary"
-                      onClick={() => setFeedbackMode('none')}
-                    >
-                      Back
+                    <button type="button" className="result-secondary" onClick={closeResult}>
+                      Close
+                    </button>
+                    <button type="button" className="thumb" onClick={thumbsUp} aria-label="Looks right">
+                      👍
                     </button>
                     <button
                       type="button"
-                      onClick={submitCorrection}
-                      disabled={submitState === 'saving'}
+                      className="thumb"
+                      onClick={thumbsDown}
+                      aria-label="Needs correction"
                     >
-                      {submitState === 'saving' ? 'Submitting…' : 'Submit'}
+                      👎
                     </button>
                   </div>
-                )}
-                {submitState === 'error' && (
-                  <p className="result-error">Could not submit. Please try again.</p>
-                )}
-              </>
-            )}
+                </section>
+
+                {/* Right panel: accepted -- download (reached by thumbs-up / pan right) */}
+                <section className="result-panel">
+                  <h2>Looks good</h2>
+                  <div className="result-table-wrap checked">
+                    <div className="scorecard-stamp">
+                      <ResultTable grid={grid} />
+                      <span className="scorecard-check" aria-hidden="true">✓</span>
+                    </div>
+                  </div>
+                  <div className="result-actions">
+                    <button type="button" className="result-secondary" onClick={closeResult}>
+                      Close
+                    </button>
+                    <button type="button" onClick={downloadCSV}>CSV</button>
+                    <button type="button" onClick={downloadXLSX}>Excel</button>
+                  </div>
+                </section>
+              </div>
+            </div>
           </div>
         </div>
       )}

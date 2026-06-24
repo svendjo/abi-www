@@ -437,4 +437,60 @@ button:disabled {
   transform: rotate(-18deg);
   filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.6));
   pointer-events: none;
+  z-index: 1;
+}
+
+/* Result modal panes slide horizontally: pan right -> accept, pan left -> edit.
+   The modal frame stays put; only the track of three full-width panels moves. */
+.result-viewport {
+  width: 100%;
+  overflow: hidden;
+}
+
+.result-track {
+  display: flex;
+  transition: transform 0.4s ease;
+}
+
+.result-panel {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-track {
+    transition: none;
+  }
+}
+
+/* Green "approved" checkmark to the bottom-right of the accepted scorecard.
+   Sits clear of the table's right edge so it doesn't cover the last column. */
+.result-table-wrap.checked {
+  overflow: visible;
+  padding: 16px 44px;
+}
+
+.scorecard-stamp {
+  position: relative;
+  display: inline-block;
+}
+
+.scorecard-check {
+  position: absolute;
+  right: -34px;
+  bottom: -10px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #2e9e3f;
+  color: #ffffff;
+  font-size: 1.7rem;
+  line-height: 1;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
