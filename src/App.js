@@ -4,10 +4,10 @@ import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
 
 // Point these at the deployed server URLs when you ship it.
-const READ_URL = 'http://localhost:8080/read';
-const ACCEPT_URL = 'http://localhost:8080/accept';
-const DECLINE_URL = 'http://localhost:8080/decline';
-const SUBMIT_URL = 'http://localhost:8080/feedback';
+const READ_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/read';
+const ACCEPT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/accept';
+const DECLINE_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/decline';
+const SUBMIT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/feedback';
 
 // Remember T&C acceptance in a cookie so the user only accepts once.
 const TERMS_COOKIE = 'balutEyeTermsAccepted';
