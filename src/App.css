@@ -4,6 +4,7 @@
 }
 
 .app-body {
+  position: relative;
   background-image: url('./assets/background.jpg');
   background-size: cover;
   background-position: center;
@@ -453,6 +454,7 @@ button:disabled {
 }
 
 .result-panel {
+  position: relative;
   flex: 0 0 100%;
   min-width: 0;
   display: flex;
@@ -493,4 +495,97 @@ button:disabled {
   line-height: 1;
   font-weight: bold;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Info "(i)" badge — top-right corner of the main page and each result panel.
+   Green, roughly the size of the corner dice; clicking it toggles a popover. */
+.info {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+}
+
+.info-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  min-width: 0;
+  max-width: none;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid #6a9651;
+  background: rgba(0, 0, 0, 0.55);
+  color: #85bb65;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: bold;
+  font-size: 1.8rem;
+  text-transform: none;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info-button:hover:not(:disabled) {
+  background: rgba(106, 150, 81, 0.25);
+  box-shadow: 0 0 10px rgba(106, 150, 81, 0.5);
+  transform: none;
+}
+
+.info-popover {
+  position: absolute;
+  top: 54px;
+  right: 0;
+  z-index: 10;
+  width: 250px;
+  max-width: 78vw;
+  padding: 14px 30px 14px 16px;
+  background: rgba(0, 0, 0, 0.92);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+.info-popover p {
+  margin: 0 0 0.6em;
+}
+
+.info-popover p:last-child {
+  margin-bottom: 0;
+}
+
+.info-popover code {
+  color: #aedd8f;
+}
+
+.info-popover-close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  padding: 0;
+  min-width: 0;
+  max-width: none;
+  flex: none;
+  background: none;
+  border: none;
+  color: #aedd8f;
+  font-size: 1.3rem;
+  font-weight: bold;
+  text-transform: none;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info-popover-close:hover:not(:disabled) {
+  background: none;
+  transform: none;
+  box-shadow: none;
+  color: #ffffff;
 }

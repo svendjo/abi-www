@@ -103,6 +103,38 @@ const EditableTable = ({ editGrid, editable, onCell }) => {
   );
 };
 
+// A small green "i" info badge that toggles a popover with an explanation. Sits
+// inside a view at the top-right corner (mirrors the corner dice on the left).
+const InfoButton = ({ children }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="info">
+      <button
+        type="button"
+        className="info-button"
+        aria-label="What is this?"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        i
+      </button>
+      {open && (
+        <div className="info-popover" role="dialog" aria-label="Help">
+          <button
+            type="button"
+            className="info-popover-close"
+            aria-label="Close"
+            onClick={() => setOpen(false)}
+          >
+            ×
+          </button>
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
 function App() {
   const [image, setImage] = useState(null);
   const [grid, setGrid] = useState(null);
@@ -269,6 +301,12 @@ function App() {
         className="app-body"
         style={bgVariant ? { backgroundImage: `url(${bgVariant})` } : undefined}
       >
+        <InfoButton>
+          <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
+          <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
+            10&times;8 table fills the frame, then press <strong>Read the sheet</strong>. A cell
+            marked <code>/ \ x</code> or left blank counts as a strike (shown as <code>x</code>).</p>
+        </InfoButton>
         <h1>Balut Eye</h1>
 
         <div className="terms-acceptance">
@@ -332,6 +370,11 @@ function App() {
               >
                 {/* Left panel: correct the scorecard (reached by thumbs-down / pan left) */}
                 <section className="result-panel">
+                  <InfoButton>
+                    <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
+                      handwritten cells are editable — type <code>x</code> for a strike.</p>
+                    <p>Your corrections are saved as ground truth to help improve the recognition.</p>
+                  </InfoButton>
                   <h2>Correct the scorecard</h2>
                   <div className="result-table-wrap">
                     {editGrid && (
@@ -373,6 +416,10 @@ function App() {
 
                 {/* Center panel: the read result */}
                 <section className="result-panel">
+                  <InfoButton>
+                    <p>This is what Balut Eye read from your photo. Strikes show as <code>x</code>.</p>
+                    <p>Press 👍 if it looks right, or 👎 to fix any wrong numbers.</p>
+                  </InfoButton>
                   <h2>Scorecard read</h2>
                   <div className="result-table-wrap">
                     <ResultTable grid={grid} />
@@ -398,6 +445,10 @@ function App() {
 
                 {/* Right panel: accepted -- download (reached by thumbs-up / pan right) */}
                 <section className="result-panel">
+                  <InfoButton>
+                    <p>Your scorecard was read correctly. Download it as a <strong>CSV</strong>
+                      (plain text) or an <strong>Excel</strong> (.xlsx) file.</p>
+                  </InfoButton>
                   <h2>Looks good</h2>
                   <div className="result-table-wrap checked">
                     <div className="scorecard-stamp">
