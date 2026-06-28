@@ -9,6 +9,23 @@ const ACCEPT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/accept';
 const DECLINE_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/decline';
 const SUBMIT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/feedback';
 
+// Decline-dialog "glitch" bars: varied thickness (h, px), length (w, %), vertical
+// position/spacing (top, %) and x start (left, %); v picks one of 3 x-shift variants.
+const GLITCH_BARS = [
+  { top: 5,  h: 3,  left: 0,  w: 34, v: 0, c: 'rgba(106,150,81,0.55)' },
+  { top: 12, h: 10, left: 26, w: 58, v: 1, c: 'rgba(174,221,143,0.60)' },
+  { top: 18, h: 2,  left: 58, w: 42, v: 2, c: 'rgba(106,150,81,0.50)' },
+  { top: 28, h: 15, left: 0,  w: 70, v: 0, c: 'rgba(106,150,81,0.60)' },
+  { top: 36, h: 4,  left: 44, w: 30, v: 2, c: 'rgba(174,221,143,0.50)' },
+  { top: 45, h: 7,  left: 8,  w: 92, v: 1, c: 'rgba(106,150,81,0.55)' },
+  { top: 54, h: 12, left: 52, w: 48, v: 0, c: 'rgba(174,221,143,0.62)' },
+  { top: 61, h: 2,  left: 0,  w: 46, v: 2, c: 'rgba(106,150,81,0.45)' },
+  { top: 70, h: 6,  left: 30, w: 64, v: 1, c: 'rgba(106,150,81,0.58)' },
+  { top: 78, h: 16, left: 12, w: 52, v: 0, c: 'rgba(174,221,143,0.60)' },
+  { top: 88, h: 3,  left: 50, w: 50, v: 2, c: 'rgba(106,150,81,0.50)' },
+  { top: 94, h: 8,  left: 20, w: 40, v: 1, c: 'rgba(174,221,143,0.55)' },
+];
+
 // Remember T&C acceptance in a cookie so the user only accepts once.
 const TERMS_COOKIE = 'balutEyeTermsAccepted';
 
@@ -160,6 +177,7 @@ function App() {
   // briefly override it with one of the two near-identical matrix-corner variants
   // (picked at random) for 500ms, then revert -- a subtle flicker effect.
   const [bgVariant, setBgVariant] = useState(null);
+  const [glitchTick, setGlitchTick] = useState(0);  // bump to replay the decline-dialog glitch
 
   useEffect(() => {
     // Don't flicker for users who prefer reduced motion.
@@ -176,6 +194,21 @@ function App() {
 
     return () => { clearInterval(interval); clearTimeout(revert); };
   }, []);
+
+  // Replay the decline-dialog glitch at a jittered interval (10s +/- 30%, i.e. 7-13s)
+  // while that dialog is up. Bumping glitchTick remounts the overlay so its one-shot
+  // CSS animation runs again.
+  useEffect(() => {
+    if (!(showResult && feedbackMode === 'down')) return undefined;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let id;
+    const schedule = () => {
+      const ms = 10000 * (1 + (Math.random() * 2 - 1) * 0.3); // 7000-13000 ms
+      id = setTimeout(() => { setGlitchTick((t) => t + 1); schedule(); }, ms);
+    };
+    schedule();
+    return () => clearTimeout(id);
+  }, [showResult, feedbackMode]);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -329,8 +362,15 @@ function App() {
         </div>
 
         <div className="controls-container">
-          <p>Upload a photo of the score sheet and Balut Eye will read the 10&times;8 table of handwritten numbers.<br/><br/>Only JPG/JPEG images are supported. For best results, use a flat, well-lit photo where the table fills the frame. A cell marked with /, \ or x counts as 0.</p>
-          <input type="file" accept="image/jpeg" onChange={handleImageUpload} />
+          <div className="upload-group">
+            <input type="file" accept="image/jpeg" onChange={handleImageUpload} />
+            {/* Camera button: capture="environment" opens the rear camera directly on mobile;
+                on desktop the browser ignores capture and falls back to a file picker. */}
+            <label className="camera-button" title="Take a photo" aria-label="Take a photo with the camera">
+              <span aria-hidden="true">📷</span>
+              <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} hidden />
+            </label>
+          </div>
           <button onClick={handleSubmit} disabled={!image || loading || !accepted}>
             {loading ? 'Reading…' : 'Read the sheet'}
           </button>
@@ -368,7 +408,7 @@ function App() {
                   transform: `translateX(${{ down: '0%', none: '-100%', up: '-200%' }[feedbackMode]})`,
                 }}
               >
-                {/* Left panel: correct the scorecard (reached by thumbs-down / pan left) */}
+                {/* Decline dialog -- correct the scorecard (left panel, reached by thumbs-down / pan left) */}
                 <section className="result-panel">
                   <InfoButton>
                     <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
@@ -414,7 +454,7 @@ function App() {
                   )}
                 </section>
 
-                {/* Center panel: the read result */}
+                {/* Read dialog -- the read result (center panel) */}
                 <section className="result-panel">
                   <InfoButton>
                     <p>This is what Balut Eye read from your photo. Strikes show as <code>x</code>.</p>
@@ -443,7 +483,7 @@ function App() {
                   </div>
                 </section>
 
-                {/* Right panel: accepted -- download (reached by thumbs-up / pan right) */}
+                {/* Accept dialog -- accepted; download (right panel, reached by thumbs-up / pan right) */}
                 <section className="result-panel">
                   <InfoButton>
                     <p>Your scorecard was read correctly. Download it as a <strong>CSV</strong>
@@ -467,6 +507,21 @@ function App() {
               </div>
             </div>
           </div>
+          {/* Whole-screen green "glitch" -- shown while the decline dialog is up.
+              position:fixed covers the viewport; pointer-events:none lets every
+              click through, so the modal's grid/buttons stay fully interactive. */}
+          {feedbackMode === 'down' && (
+            <div className="glitch-overlay" key={glitchTick} aria-hidden="true">
+              {GLITCH_BARS.map((b, i) => (
+                <span
+                  key={i}
+                  className={`glitch-bar glitch-bar-${b.v}`}
+                  style={{ top: `${b.top}%`, left: `${b.left}%`, width: `${b.w}%`,
+                           height: `${b.h}px`, background: b.c }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

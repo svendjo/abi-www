@@ -72,6 +72,43 @@ input[type="file"]::-webkit-file-upload-button {
   font-weight: bold;
 }
 
+/* Upload group: the "Choose File" input and the camera button side by side */
+.upload-group {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.upload-group input[type="file"] {
+  flex: 1;
+  min-width: 0;     /* let it shrink to fit beside the camera button */
+  max-width: none;
+}
+
+/* Camera button: opens the device camera directly on mobile (capture attr) */
+.camera-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: rgba(0, 0, 0, 0.7);
+  color: #6a9651;
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.camera-button:hover {
+  background: #aedd8f;
+  box-shadow: 0 0 15px rgba(218, 165, 32, 0.5);
+}
+
 /* Button styling */
 button {
   background: #6a9651;
@@ -420,6 +457,45 @@ button:disabled {
   border-radius: 4px;
 }
 
+/* --- Phones: shrink the result dialogs so the full 10x8 grid fits the screen --- */
+@media (max-width: 600px) {
+  .result-overlay { padding: 6px; }
+  .result-modal {
+    padding: 12px 8px;
+    max-height: 94vh;
+    box-sizing: border-box;
+  }
+  .result-modal h2 { font-size: 1.05rem; margin: 0 0 8px; }
+
+  .result-table td {
+    font-size: 0.7rem;
+    width: 1.9em;
+    height: 2em;
+  }
+  /* long row-label column (e.g. "Points - Grand Total"): wrap instead of forcing width */
+  .result-table td:first-child {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.1;
+    font-size: 0.62rem;
+  }
+  .result-table.editable td { padding: 1px; }
+  .result-table.editable td input {
+    width: 1.9em;
+    padding: 2px 1px;
+    font-size: 0.7rem;
+  }
+  .result-table-wrap { max-height: 56vh; }
+
+  /* action buttons: drop the 200px min-width so they don't stack full-height */
+  .result-actions button {
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: 9px 8px;
+    font-size: 0.8rem;
+  }
+}
+
 /* A die peeking out of every modal's top-left corner -- for fun. It straddles
    the corner so it extends past both the top and left edges of the frame. */
 .terms-modal,
@@ -459,6 +535,61 @@ button:disabled {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Whole-screen green "glitch": a scatter of green bars (varied thickness, length,
+   vertical spacing and x start -- see GLITCH_BARS in App.js) that tear sideways for
+   ~0.55s, then idle, on a 5s loop. Shown while the decline dialog is up.
+   position:fixed covers the viewport; pointer-events:none lets every click through,
+   so the grid/buttons stay fully interactive throughout. */
+.glitch-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+
+.glitch-bar {
+  position: absolute;
+  opacity: 0;                  /* the keyframes flash it on during the burst */
+  will-change: transform, opacity;
+}
+
+/* three x-shift variants so neighbouring bars tear by different amounts */
+/* one-shot ~0.55s burst; App.js bumps the overlay's `key` to replay it at a
+   jittered ~10s interval (10s +/- 30%). steps(1) -> bars jump abruptly ("tearing"). */
+.glitch-bar-0 { animation: glitch-bar-a 0.55s steps(1) forwards; }
+.glitch-bar-1 { animation: glitch-bar-b 0.55s steps(1) forwards; }
+.glitch-bar-2 { animation: glitch-bar-c 0.55s steps(1) forwards; }
+
+@keyframes glitch-bar-a {
+  0%   { opacity: 1;    transform: translateX(0); }
+  25%  { opacity: 0.4;  transform: translateX(-18px); }
+  50%  { opacity: 1;    transform: translateX(10px); }
+  80%  { opacity: 0.6;  transform: translateX(-6px); }
+  100% { opacity: 0;    transform: translateX(0); }
+}
+
+@keyframes glitch-bar-b {
+  0%   { opacity: 0.7;  transform: translateX(0); }
+  25%  { opacity: 1;    transform: translateX(14px); }
+  50%  { opacity: 0.5;  transform: translateX(-12px); }
+  80%  { opacity: 1;    transform: translateX(6px); }
+  100% { opacity: 0;    transform: translateX(0); }
+}
+
+@keyframes glitch-bar-c {
+  0%   { opacity: 0.5;  transform: translateX(0); }
+  25%  { opacity: 1;    transform: translateX(-9px); }
+  50%  { opacity: 0.85; transform: translateX(20px); }
+  80%  { opacity: 0.4;  transform: translateX(-4px); }
+  100% { opacity: 0;    transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glitch-overlay { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
