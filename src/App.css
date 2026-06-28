@@ -20,8 +20,19 @@
 }
 
 h1 {
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  margin-bottom: 2rem;
+  font-family: 'Orbitron', 'Eurostile', 'Bank Gothic', sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(106, 150, 81, 0.6), 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.tagline {
+  margin: 0 0 2rem;
+  font-size: 1rem;
+  color: #cfe6bd;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 /* Controls container for side-by-side layout */
@@ -46,45 +57,6 @@ h1 {
   min-width: 200px;
   max-width: 400px;
   font-size: 1rem;
-}
-
-/* Custom file input styling */
-input[type="file"] {
-  background: rgba(0, 0, 0, 0.7);
-  color: #6a9651;
-  padding: 10px 20px;
-  border: 2px solid #6a9651;
-  border-radius: 8px;
-  cursor: pointer;
-  flex: 1;
-  min-width: 200px;
-  max-width: 400px;
-}
-
-input[type="file"]::-webkit-file-upload-button {
-  background: #6a9651;
-  color: black;
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 10px;
-  font-weight: bold;
-}
-
-/* Upload group: the "Choose File" input and the camera button side by side */
-.upload-group {
-  display: flex;
-  gap: 10px;
-  flex: 1;
-  min-width: 200px;
-  max-width: 400px;
-}
-
-.upload-group input[type="file"] {
-  flex: 1;
-  min-width: 0;     /* let it shrink to fit beside the camera button */
-  max-width: none;
 }
 
 /* Camera button: opens the device camera directly on mobile (capture attr) */
@@ -175,24 +147,6 @@ button:disabled {
 }
 
 /* Image container */
-.image-container {
-  margin: 1rem 0;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 10px;
-  border-radius: 8px;
-  border: 2px solid #6a9651;
-  width: 80%;
-  max-width: 800px;
-}
-
-.image {
-  max-width: 100%;
-  max-height: 300px;
-  border-radius: 4px;
-  display: block;
-  margin: 0 auto;
-}
-
 /* Result bubble (errors / status) */
 .result-bubble-container {
   width: 100%;
@@ -384,15 +338,14 @@ button:disabled {
 }
 
 .result-table-wrap {
-  overflow: auto;
-  max-height: 55vh;
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .result-prompt {
   text-align: center;
-  margin: 18px 0 12px;
+  margin: 14px 0 12px;
   font-size: 1rem;
 }
 
@@ -485,7 +438,7 @@ button:disabled {
     padding: 2px 1px;
     font-size: 0.7rem;
   }
-  .result-table-wrap { max-height: 56vh; }
+  .result-preview img { max-height: 32vh; }
 
   /* action buttons: drop the 200px min-width so they don't stack full-height */
   .result-actions button {
@@ -521,11 +474,18 @@ button:disabled {
    The modal frame stays put; only the track of three full-width panels moves. */
 .result-viewport {
   width: 100%;
+  flex: 1;            /* fill the modal so panels get a definite height to scroll within */
+  min-height: 0;
   overflow: hidden;
+  display: flex;      /* column: let the track fill the height via flex (a % height
+                         won't resolve against the modal's max-height-only sizing) */
+  flex-direction: column;
 }
 
 .result-track {
-  display: flex;
+  display: flex;      /* row: the three panels slide horizontally */
+  flex: 1;
+  min-height: 0;
   transition: transform 0.4s ease;
 }
 
@@ -533,8 +493,56 @@ button:disabled {
   position: relative;
   flex: 0 0 100%;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* Vertical scroll region inside each panel: photo preview on top, rendered table
+   below. It flex-grows and scrolls so the action buttons (its sibling, below) stay
+   pinned at the bottom of the dialog. */
+.result-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;     /* vertical scroll only */
+  overflow-x: hidden;   /* never scroll sideways (e.g. the accept dialog's check stamp) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  /* thin green scrollbar to match the theme */
+  scrollbar-width: thin;                       /* Firefox */
+  scrollbar-color: #6a9651 transparent;        /* thumb / track (Firefox) */
+}
+
+/* WebKit/Chromium: a thin green line */
+.result-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.result-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.result-scroll::-webkit-scrollbar-thumb {
+  background: #6a9651;
+  border-radius: 2px;
+}
+
+/* Photo preview at the top of each dialog */
+.result-preview {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.result-preview img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 4px;
+  border: 2px solid #6a9651;
+  display: block;
 }
 
 /* Whole-screen green "glitch": a scatter of green bars (varied thickness, length,
@@ -602,7 +610,7 @@ button:disabled {
    Sits clear of the table's right edge so it doesn't cover the last column. */
 .result-table-wrap.checked {
   overflow: visible;
-  padding: 16px 44px;
+  padding: 16px 26px;
 }
 
 .scorecard-stamp {
@@ -612,10 +620,10 @@ button:disabled {
 
 .scorecard-check {
   position: absolute;
-  right: -34px;
+  right: -18px;
   bottom: -10px;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -328,6 +328,13 @@ function App() {
     return new Blob([u8arr], { type: mime });
   }
 
+  // Photo preview shown inside every result dialog, above the rendered table.
+  const imagePreview = image && (
+    <div className="result-preview">
+      <img src={image} alt="Your uploaded scorecard" />
+    </div>
+  );
+
   return (
     <div className="App">
       <div
@@ -341,6 +348,7 @@ function App() {
             marked <code>/ \ x</code> or left blank counts as a strike (shown as <code>x</code>).</p>
         </InfoButton>
         <h1>Balut Eye</h1>
+        <p className="tagline">Take a photo of a Balut scorecard.</p>
 
         <div className="terms-acceptance">
           <input
@@ -362,17 +370,14 @@ function App() {
         </div>
 
         <div className="controls-container">
-          <div className="upload-group">
-            <input type="file" accept="image/jpeg" onChange={handleImageUpload} />
-            {/* Camera button: capture="environment" opens the rear camera directly on mobile;
-                on desktop the browser ignores capture and falls back to a file picker. */}
-            <label className="camera-button" title="Take a photo" aria-label="Take a photo with the camera">
-              <span aria-hidden="true">📷</span>
-              <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} hidden />
-            </label>
-          </div>
+          {/* Camera button: capture="environment" opens the rear camera directly on mobile;
+              on desktop the browser ignores capture and falls back to a file picker. */}
+          <label className="camera-button" title="Take a photo" aria-label="Take a photo with the camera">
+            <span aria-hidden="true">📷</span>
+            <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} hidden />
+          </label>
           <button onClick={handleSubmit} disabled={!image || loading || !accepted}>
-            {loading ? 'Reading…' : 'Read the sheet'}
+            {loading ? 'Reading…' : 'Read scorecard'}
           </button>
         </div>
 
@@ -381,12 +386,6 @@ function App() {
             <div className="result-bubble">
               <p className="result-bubble-text">{status}</p>
             </div>
-          </div>
-        )}
-
-        {image !== null && (
-          <div className="image-container">
-            <img src={image} alt="Uploaded sheet" className="image" />
           </div>
         )}
 
@@ -415,11 +414,14 @@ function App() {
                       handwritten cells are editable — type <code>x</code> for a strike.</p>
                     <p>Your corrections are saved as ground truth to help improve the recognition.</p>
                   </InfoButton>
-                  <h2>Correct the scorecard</h2>
-                  <div className="result-table-wrap">
-                    {editGrid && (
-                      <EditableTable editGrid={editGrid} editable={editable} onCell={updateCell} />
-                    )}
+                  <h2>Bad read</h2>
+                  <div className="result-scroll">
+                    {imagePreview}
+                    <div className="result-table-wrap">
+                      {editGrid && (
+                        <EditableTable editGrid={editGrid} editable={editable} onCell={updateCell} />
+                      )}
+                    </div>
                   </div>
                   {submitState === 'done' ? (
                     <>
@@ -460,23 +462,27 @@ function App() {
                     <p>This is what Balut Eye read from your photo. Strikes show as <code>x</code>.</p>
                     <p>Press 👍 if it looks right, or 👎 to fix any wrong numbers.</p>
                   </InfoButton>
-                  <h2>Scorecard read</h2>
-                  <div className="result-table-wrap">
-                    <ResultTable grid={grid} />
+                  <h2>Scorecard</h2>
+                  <div className="result-scroll">
+                    {imagePreview}
+                    <div className="result-table-wrap">
+                      <ResultTable grid={grid} />
+                    </div>
                   </div>
                   <p className="result-prompt">Does this look right?</p>
                   <div className="result-actions">
                     <button type="button" className="result-secondary" onClick={closeResult}>
                       Close
                     </button>
-                    <button type="button" className="thumb" onClick={thumbsUp} aria-label="Looks right">
+                    <button type="button" className="thumb" onClick={thumbsUp} aria-label="Good read" title="Good read">
                       👍
                     </button>
                     <button
                       type="button"
                       className="thumb"
                       onClick={thumbsDown}
-                      aria-label="Needs correction"
+                      aria-label="Bad read"
+                      title="Bad read"
                     >
                       👎
                     </button>
@@ -489,11 +495,14 @@ function App() {
                     <p>Your scorecard was read correctly. Download it as a <strong>CSV</strong>
                       (plain text) or an <strong>Excel</strong> (.xlsx) file.</p>
                   </InfoButton>
-                  <h2>Looks good</h2>
-                  <div className="result-table-wrap checked">
-                    <div className="scorecard-stamp">
-                      <ResultTable grid={grid} />
-                      <span className="scorecard-check" aria-hidden="true">✓</span>
+                  <h2>Good read</h2>
+                  <div className="result-scroll">
+                    {imagePreview}
+                    <div className="result-table-wrap checked">
+                      <div className="scorecard-stamp">
+                        <ResultTable grid={grid} />
+                        <span className="scorecard-check" aria-hidden="true">✓</span>
+                      </div>
                     </div>
                   </div>
                   <div className="result-actions">
