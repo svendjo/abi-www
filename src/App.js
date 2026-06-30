@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import { apiBase } from './config';
 import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
 
-// Point these at the deployed server URLs when you ship it.
-const READ_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/read';
-const ACCEPT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/accept';
-const DECLINE_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/decline';
-const SUBMIT_URL = 'https://mg8cqemrmm.us-west-2.awsapprunner.com/feedback';
+// Server endpoints; the host comes from the active environment (see config.js).
+const READ_URL = `${apiBase}/read`;
+const ACCEPT_URL = `${apiBase}/accept`;
+const DECLINE_URL = `${apiBase}/decline`;
+const SUBMIT_URL = `${apiBase}/feedback`;
 
 // Decline-dialog "glitch" bars: varied thickness (h, px), length (w, %), vertical
 // position/spacing (top, %) and x start (left, %); v picks one of 3 x-shift variants.
