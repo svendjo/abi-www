@@ -35,4 +35,4 @@ Copy it to S3 (sign in first).
 
 Then create a CloudFront invalidation on `/*` to push the update:
 
-`aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths "/*"`
+`aws cloudfront create-invalidation --distribution-id E2P072IUYX7U7M --paths "/*"`
