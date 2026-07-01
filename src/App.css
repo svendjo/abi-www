@@ -136,6 +136,15 @@ button:disabled {
   text-align: center;
 }
 
+/* Narrow yellow box around a number a consistency warning applies to
+   (read/accept dialogs, and static cells in the correction dialog). */
+.warn-box {
+  display: inline-block;
+  padding: 0 2px;
+  border: 1px solid #ffd633;
+  border-radius: 3px;
+}
+
 .saved-note {
   font-size: 0.8rem;
   color: #cccccc;
@@ -408,6 +417,12 @@ button:disabled {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid #6a9651;
   border-radius: 4px;
+}
+
+/* Correction dialog: a warned cell's text box gets a yellow frame. */
+.result-table.editable td input.warn {
+  border-color: #ffd633;
+  box-shadow: 0 0 0 1px #ffd633;
 }
 
 /* --- Phones: shrink the result dialogs so the full 10x8 grid fits the screen --- */

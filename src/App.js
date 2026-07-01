@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { apiBase } from './config';
 import matrixTL from './assets/background-matrix-tl.jpg';
@@ -9,6 +9,7 @@ const READ_URL = `${apiBase}/read`;
 const ACCEPT_URL = `${apiBase}/accept`;
 const DECLINE_URL = `${apiBase}/decline`;
 const SUBMIT_URL = `${apiBase}/feedback`;
+const VERIFY_URL = `${apiBase}/verify`;
 
 // Decline-dialog "glitch" bars: varied thickness (h, px), length (w, %), vertical
 // position/spacing (top, %) and x start (left, %); v picks one of 3 x-shift variants.
@@ -64,10 +65,11 @@ function downloadBlob(blob, filename) {
 }
 
 // Heavier outline around the A6:H7 block -- the Score (col 6) and Jackpot (col 7)
-// columns, from the header row A down through the Balut row H.
+// columns, from the header row A down through the Balut row H. Same green as the
+// rest of the grid (yellow is reserved for warning highlights).
 function blockBorder(r, c) {
   if (r > 7 || (c !== 5 && c !== 6)) return undefined;
-  const heavy = '3px solid #d4af37';
+  const heavy = '3px solid #6a9651';
   const style = {};
   if (r === 0) style.borderTop = heavy;
   if (r === 7) style.borderBottom = heavy;
@@ -76,14 +78,18 @@ function blockBorder(r, c) {
   return style;
 }
 
-const ResultTable = ({ grid }) => {
+// `warned` is a Set of "r,c" keys for cells a consistency warning applies to; the
+// read/accept dialogs draw a narrow yellow box around the number in those cells.
+const ResultTable = ({ grid, warned }) => {
   return (
     <table className="result-table">
       <tbody>
         {grid.map((row, r) => (
           <tr key={r}>
             {row.map((value, c) => (
-              <td key={c} style={blockBorder(r, c)}>{value}</td>
+              <td key={c} style={blockBorder(r, c)}>
+                {warned?.has(`${r},${c}`) ? <span className="warn-box">{value}</span> : value}
+              </td>
             ))}
           </tr>
         ))}
@@ -93,27 +99,34 @@ const ResultTable = ({ grid }) => {
 };
 
 // Only cells the server marks as handwritten (the `editable` mask) become inputs;
-// printed labels and always-blank cells stay static text.
-const EditableTable = ({ editGrid, editable, onCell }) => {
+// printed labels and always-blank cells stay static text. Cells in `warned` get a
+// yellow frame (on the input, or a box around static text).
+const EditableTable = ({ editGrid, editable, onCell, warned }) => {
   return (
     <table className="result-table editable">
       <tbody>
         {editGrid.map((row, r) => (
           <tr key={r}>
-            {row.map((value, c) => (
-              <td key={c} style={blockBorder(r, c)}>
-                {editable?.[r]?.[c] ? (
-                  <input
-                    type="text"
-                    value={value}
-                    onChange={(e) => onCell(r, c, e.target.value)}
-                    aria-label={`row ${r + 1} column ${c + 1}`}
-                  />
-                ) : (
-                  value
-                )}
-              </td>
-            ))}
+            {row.map((value, c) => {
+              const isWarned = warned?.has(`${r},${c}`);
+              return (
+                <td key={c} style={blockBorder(r, c)}>
+                  {editable?.[r]?.[c] ? (
+                    <input
+                      type="text"
+                      className={isWarned ? 'warn' : undefined}
+                      value={value}
+                      onChange={(e) => onCell(r, c, e.target.value)}
+                      aria-label={`row ${r + 1} column ${c + 1}`}
+                    />
+                  ) : isWarned ? (
+                    <span className="warn-box">{value}</span>
+                  ) : (
+                    value
+                  )}
+                </td>
+              );
+            })}
           </tr>
         ))}
       </tbody>
@@ -163,6 +176,8 @@ function App() {
   const [feedbackMode, setFeedbackMode] = useState('none'); // 'none' | 'up' | 'down'
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
   const [editable, setEditable] = useState(null);           // which cells may be edited
+  const [warningCells, setWarningCells] = useState([]);     // [r,c] cells flagged by a warning
+  const editSeededRef = useRef(false);                      // skip re-verifying the initial /read grid
   const [resultId, setResultId] = useState(null);           // server folder id for this read
   const [submitState, setSubmitState] = useState('idle');   // 'idle'|'saving'|'done'|'error'
   // Terms & conditions: initialise from the cookie so returning users skip it.
@@ -211,6 +226,23 @@ function App() {
     return () => clearTimeout(id);
   }, [showResult, feedbackMode]);
 
+  // Re-check the correction grid against the server on every edit (debounced) so the
+  // yellow warning highlights update live as the user fixes cells. The first run
+  // (initial seed from /read) is skipped -- those warnings already came from /read.
+  useEffect(() => {
+    if (!editGrid) return undefined;
+    if (!editSeededRef.current) { editSeededRef.current = true; return undefined; }
+    const timer = setTimeout(() => {
+      const form = new FormData();
+      form.append('grid', JSON.stringify(editGrid));
+      fetch(VERIFY_URL, { method: 'POST', body: form })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => { if (data) setWarningCells(data.warning_cells || []); })
+        .catch((e) => console.error('Verify error:', e));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [editGrid]);
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -248,7 +280,10 @@ function App() {
       const data = await response.json();
       setGrid(data.grid);
       setEditable(data.editable);
+      setWarningCells(data.warning_cells || []);
       // Seed the editable copy now so the (always-mounted) edit panel has data.
+      // The seed matches the read, so don't re-verify it (its warnings came from /read).
+      editSeededRef.current = false;
       setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
       setResultId(data.id);
       setFeedbackMode('none');
@@ -328,6 +363,10 @@ function App() {
     }
     return new Blob([u8arr], { type: mime });
   }
+
+  // Cells a consistency warning applies to, as a Set of "r,c" keys for quick lookup.
+  const warnedSet = new Set(warningCells.map(([r, c]) => `${r},${c}`));
+  const hasWarnings = warningCells.length > 0;
 
   // Photo preview shown inside every result dialog, above the rendered table.
   const imagePreview = image && (
@@ -420,7 +459,12 @@ function App() {
                     {imagePreview}
                     <div className="result-table-wrap">
                       {editGrid && (
-                        <EditableTable editGrid={editGrid} editable={editable} onCell={updateCell} />
+                        <EditableTable
+                          editGrid={editGrid}
+                          editable={editable}
+                          onCell={updateCell}
+                          warned={warnedSet}
+                        />
                       )}
                     </div>
                   </div>
@@ -439,6 +483,9 @@ function App() {
                         Fix any wrong numbers, then submit to help improve recognition.
                       </p>
                       <div className="result-actions">
+                        <button type="button" className="result-secondary" onClick={() => setFeedbackMode('none')}>
+                          Back
+                        </button>
                         <button type="button" className="result-secondary" onClick={closeResult}>
                           Close
                         </button>
@@ -501,12 +548,17 @@ function App() {
                     {imagePreview}
                     <div className="result-table-wrap checked">
                       <div className="scorecard-stamp">
-                        <ResultTable grid={grid} />
-                        <span className="scorecard-check" aria-hidden="true">✓</span>
+                        <ResultTable grid={grid} warned={warnedSet} />
+                        {!hasWarnings && (
+                          <span className="scorecard-check" aria-hidden="true">✓</span>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="result-actions">
+                    <button type="button" className="result-secondary" onClick={() => setFeedbackMode('none')}>
+                      Back
+                    </button>
                     <button type="button" className="result-secondary" onClick={closeResult}>
                       Close
                     </button>
