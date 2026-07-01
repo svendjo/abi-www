@@ -177,6 +177,8 @@ function App() {
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
   const [editable, setEditable] = useState(null);           // which cells may be edited
   const [warningCells, setWarningCells] = useState([]);     // [r,c] cells flagged by a warning
+  const [rotation, setRotation] = useState(0);              // OSD rotation (deg CW) the server applied
+  const [previewSrc, setPreviewSrc] = useState(null);       // photo re-oriented to match the read
   const editSeededRef = useRef(false);                      // skip re-verifying the initial /read grid
   const [resultId, setResultId] = useState(null);           // server folder id for this read
   const [submitState, setSubmitState] = useState('idle');   // 'idle'|'saving'|'done'|'error'
@@ -243,6 +245,37 @@ function App() {
     return () => clearTimeout(timer);
   }, [editGrid]);
 
+  // Re-orient the photo to match what the server read. `rotation` (deg CW) is
+  // relative to the browser's EXIF-oriented rendering, so we load the photo the
+  // normal way (an <img>, which the browser EXIF-orients) and rotate that on a
+  // canvas -- no EXIF wrangling, and 90/270 gets correct dimensions.
+  useEffect(() => {
+    if (!image) { setPreviewSrc(null); return undefined; }
+    let cancelled = false;
+    const rot = ((rotation % 360) + 360) % 360;
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      try {
+        const swap = rot === 90 || rot === 270;
+        const canvas = document.createElement('canvas');
+        canvas.width = swap ? img.naturalHeight : img.naturalWidth;
+        canvas.height = swap ? img.naturalWidth : img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+        setPreviewSrc(canvas.toDataURL('image/jpeg', 0.9));
+      } catch (e) {
+        console.error('Preview re-orient failed:', e);
+        setPreviewSrc(image);  // fall back to the browser's own rendering
+      }
+    };
+    img.onerror = () => { if (!cancelled) setPreviewSrc(image); };
+    img.src = image;
+    return () => { cancelled = true; };
+  }, [image, rotation]);
+
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -281,6 +314,7 @@ function App() {
       setGrid(data.grid);
       setEditable(data.editable);
       setWarningCells(data.warning_cells || []);
+      setRotation(data.rotation || 0);
       // Seed the editable copy now so the (always-mounted) edit panel has data.
       // The seed matches the read, so don't re-verify it (its warnings came from /read).
       editSeededRef.current = false;
@@ -369,9 +403,10 @@ function App() {
   const hasWarnings = warningCells.length > 0;
 
   // Photo preview shown inside every result dialog, above the rendered table.
-  const imagePreview = image && (
+  // previewSrc is the photo re-oriented (upright) to match the recognized grid.
+  const imagePreview = previewSrc && (
     <div className="result-preview">
-      <img src={image} alt="Your uploaded scorecard" />
+      <img src={previewSrc} alt="Your uploaded scorecard" />
     </div>
   );
 
