@@ -78,6 +78,19 @@ function blockBorder(r, c) {
   return style;
 }
 
+// The two totals rows carry a long label that needs a whole line: merge I1-I5
+// into one cell for "Total Score" and J1-J7 into one for "Points - Grand Total".
+// `cellSpan` gives the colSpan of the surviving (first) cell; `isMergedAway` marks
+// the empty cells that span swallows so the render loop skips them.
+function cellSpan(r, c) {
+  if (r === 8 && c === 0) return 5;  // I1 covers I1-I5 ("Total Score")
+  if (r === 9 && c === 0) return 7;  // J1 covers J1-J7 ("Points - Grand Total")
+  return undefined;
+}
+function isMergedAway(r, c) {
+  return (r === 8 && c >= 1 && c <= 4) || (r === 9 && c >= 1 && c <= 6);
+}
+
 // `warned` is a Set of "r,c" keys for cells a consistency warning applies to; the
 // read/accept dialogs draw a narrow yellow box around the number in those cells.
 const ResultTable = ({ grid, warned }) => {
@@ -87,9 +100,11 @@ const ResultTable = ({ grid, warned }) => {
         {grid.map((row, r) => (
           <tr key={r}>
             {row.map((value, c) => (
-              <td key={c} style={blockBorder(r, c)}>
-                {warned?.has(`${r},${c}`) ? <span className="warn-box">{value}</span> : value}
-              </td>
+              isMergedAway(r, c) ? null : (
+                <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}>
+                  {warned?.has(`${r},${c}`) ? <span className="warn-box">{value}</span> : value}
+                </td>
+              )
             ))}
           </tr>
         ))}
@@ -108,9 +123,10 @@ const EditableTable = ({ editGrid, editable, onCell, warned }) => {
         {editGrid.map((row, r) => (
           <tr key={r}>
             {row.map((value, c) => {
+              if (isMergedAway(r, c)) return null;
               const isWarned = warned?.has(`${r},${c}`);
               return (
-                <td key={c} style={blockBorder(r, c)}>
+                <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}>
                   {editable?.[r]?.[c] ? (
                     <input
                       type="text"

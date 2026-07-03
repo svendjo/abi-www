@@ -136,6 +136,14 @@ button:disabled {
   text-align: center;
 }
 
+/* Column 1 holds the printed category labels ("4's" ... "Points - Grand Total");
+   left-align it (other columns stay centered). */
+.result-table td:first-child {
+  text-align: left;
+  white-space: nowrap;
+  padding: 0 0.5em;
+}
+
 /* Narrow yellow box around a number a consistency warning applies to
    (read/accept dialogs, and static cells in the correction dialog). */
 .warn-box {
