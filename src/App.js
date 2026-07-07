@@ -53,6 +53,16 @@ function gridToCSV(grid) {
   return grid.map((row) => row.map(csvCell).join(',')).join('\n') + '\n';
 }
 
+// The edit grid holds every cell as a string ('' for blank); convert integer cells
+// back to numbers so a submitted correction matches the shape of a server-read grid
+// (numbers for scores/points, 'x'/'-' and labels left as text). Used to promote the
+// corrected edit grid into `grid` so the accept dialog renders and exports it.
+function toGridValue(v) {
+  if (v === '' || v == null) return '';
+  const s = String(v).trim();
+  return /^-?\d+$/.test(s) ? Number(s) : v;
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -208,6 +218,10 @@ function App() {
   const editSeededRef = useRef(false);                      // skip re-verifying the initial /read grid
   const [resultId, setResultId] = useState(null);           // server folder id for this read
   const [submitState, setSubmitState] = useState('idle');   // 'idle'|'saving'|'done'|'error'
+  // Flow state, shared by the three result dialogs: 'opened' until the user either
+  // accepts (👍) or submits a correction, then 'submitted' -- a one-way latch (only a
+  // fresh read resets it). In 'submitted' the accept dialog's Back button is disabled.
+  const [flowState, setFlowState] = useState('opened');     // 'opened' | 'submitted'
   // Terms & conditions: initialise from the cookie so returning users skip it.
   const [accepted, setAccepted] = useState(hasAcceptedTerms);
   const [showTerms, setShowTerms] = useState(false);
@@ -354,6 +368,7 @@ function App() {
       setResultId(data.id);
       setFeedbackMode('none');
       setSubmitState('idle');
+      setFlowState('opened');   // new read -> start the flow over
       setShowResult(true);
     } catch (error) {
       console.error('Error:', error);
@@ -376,7 +391,8 @@ function App() {
   const thumbsUp = () => {
     if (hasErrors) return;   // errors block accept; the button is disabled too
     sendVerdict(ACCEPT_URL);
-    setFeedbackMode('up');   // pan right
+    setFlowState('submitted');  // one-way latch
+    setFeedbackMode('up');   // pan right to the accept dialog
   };
 
   const thumbsDown = () => {
@@ -412,7 +428,12 @@ function App() {
       form.append('grid', JSON.stringify(editGrid));
       const res = await fetch(SUBMIT_URL, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
+      // Promote the corrected edit grid so the accept dialog renders and exports the
+      // player's corrections, not the original read.
+      setGrid(editGrid.map((row) => row.map(toGridValue)));
       setSubmitState('done');
+      setFlowState('submitted');  // one-way latch
+      setFeedbackMode('up');      // pan to the accept dialog
     } catch (err) {
       console.error('Submit error:', err);
       setSubmitState('error');
@@ -529,8 +550,8 @@ function App() {
                     <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> outline is a warning
                       (a score or total that doesn&rsquo;t match the numbers); a
                       <strong style={{ color: '#ff4d4d' }}> red</strong> outline is an error (the
-                      points don&rsquo;t add up). The highlights update as you type — <strong>Submit</strong> 
-                      stays disabled while any red remains, but yellow won&rsquo;t block you.</p>
+                      points don&rsquo;t add up). The highlights update as you type — the <strong>Submit</strong>{' '}
+                      button stays disabled while any red remains, but yellow won&rsquo;t block you.</p>
                     <p>Your corrections are saved as ground truth to help improve the recognition.</p>
                   </InfoButton>
                   <h2>Bad read</h2>
@@ -639,13 +660,14 @@ function App() {
                 {/* Accept dialog -- accepted; download (right panel, reached by thumbs-up / pan right) */}
                 <section className="result-panel">
                   <InfoButton>
-                    <p>Your scorecard was read correctly. Download it as a <strong>CSV</strong>
-                      (plain text) or an <strong>Excel</strong> (.xlsx) file.</p>
+                    <p>Your scorecard is ready — as read, or with your corrections applied.
+                      Download it as a <strong>CSV</strong> (plain text) or an
+                      <strong> Excel</strong> (.xlsx) file.</p>
                     <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> cell is a warning — a
                       score or total that doesn&rsquo;t match what the numbers add up to. It
                       didn&rsquo;t block accepting, but double-check it before you rely on the export.</p>
                   </InfoButton>
-                  <h2>Good read</h2>
+                  <h2>Scorecard ready</h2>
                   <div className="result-scroll">
                     {imagePreview}
                     <div className="result-table-wrap checked">
@@ -658,7 +680,12 @@ function App() {
                     </div>
                   </div>
                   <div className="result-actions">
-                    <button type="button" className="result-secondary" onClick={() => setFeedbackMode('none')}>
+                    <button
+                      type="button"
+                      className="result-secondary"
+                      onClick={() => setFeedbackMode('none')}
+                      disabled={flowState === 'submitted'}
+                    >
                       Back
                     </button>
                     <button type="button" className="result-secondary" onClick={closeResult}>
