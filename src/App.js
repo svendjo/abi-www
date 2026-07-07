@@ -91,21 +91,25 @@ function isMergedAway(r, c) {
   return (r === 8 && c >= 1 && c <= 4) || (r === 9 && c >= 1 && c <= 6);
 }
 
-// `warned` is a Set of "r,c" keys for cells a consistency warning applies to; the
-// read/accept dialogs draw a narrow yellow box around the number in those cells.
-const ResultTable = ({ grid, warned }) => {
+// `warned` / `errored` are Sets of "r,c" keys for cells a consistency check flags:
+// warnings draw a narrow yellow box around the number, errors a red one. Errors take
+// precedence when a cell is in both. Shown in all three result dialogs.
+const ResultTable = ({ grid, warned, errored }) => {
   return (
     <table className="result-table">
       <tbody>
         {grid.map((row, r) => (
           <tr key={r}>
-            {row.map((value, c) => (
-              isMergedAway(r, c) ? null : (
+            {row.map((value, c) => {
+              if (isMergedAway(r, c)) return null;
+              const key = `${r},${c}`;
+              const cls = errored?.has(key) ? 'error-box' : warned?.has(key) ? 'warn-box' : null;
+              return (
                 <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}>
-                  {warned?.has(`${r},${c}`) ? <span className="warn-box">{value}</span> : value}
+                  {cls ? <span className={cls}>{value}</span> : value}
                 </td>
-              )
-            ))}
+              );
+            })}
           </tr>
         ))}
       </tbody>
@@ -114,9 +118,10 @@ const ResultTable = ({ grid, warned }) => {
 };
 
 // Only cells the server marks as handwritten (the `editable` mask) become inputs;
-// printed labels and always-blank cells stay static text. Cells in `warned` get a
-// yellow frame (on the input, or a box around static text).
-const EditableTable = ({ editGrid, editable, onCell, warned }) => {
+// printed labels and always-blank cells stay static text. Flagged cells get a
+// coloured frame (on the input, or a box around static text): yellow for a warning,
+// red for an error (error wins when a cell is in both).
+const EditableTable = ({ editGrid, editable, onCell, warned, errored }) => {
   return (
     <table className="result-table editable">
       <tbody>
@@ -124,19 +129,23 @@ const EditableTable = ({ editGrid, editable, onCell, warned }) => {
           <tr key={r}>
             {row.map((value, c) => {
               if (isMergedAway(r, c)) return null;
-              const isWarned = warned?.has(`${r},${c}`);
+              const key = `${r},${c}`;
+              const isErrored = errored?.has(key);
+              const isWarned = warned?.has(key);
+              const inputCls = isErrored ? 'error' : isWarned ? 'warn' : undefined;
+              const boxCls = isErrored ? 'error-box' : isWarned ? 'warn-box' : null;
               return (
                 <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}>
                   {editable?.[r]?.[c] ? (
                     <input
                       type="text"
-                      className={isWarned ? 'warn' : undefined}
+                      className={inputCls}
                       value={value}
                       onChange={(e) => onCell(r, c, e.target.value)}
                       aria-label={`row ${r + 1} column ${c + 1}`}
                     />
-                  ) : isWarned ? (
-                    <span className="warn-box">{value}</span>
+                  ) : boxCls ? (
+                    <span className={boxCls}>{value}</span>
                   ) : (
                     value
                   )}
@@ -192,7 +201,8 @@ function App() {
   const [feedbackMode, setFeedbackMode] = useState('none'); // 'none' | 'up' | 'down'
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
   const [editable, setEditable] = useState(null);           // which cells may be edited
-  const [warningCells, setWarningCells] = useState([]);     // [r,c] cells flagged by a warning
+  const [warningCells, setWarningCells] = useState([]);     // [r,c] cells flagged by a warning (advisory)
+  const [errorCells, setErrorCells] = useState([]);         // [r,c] cells flagged by an error (blocks accept/submit)
   const [rotation, setRotation] = useState(0);              // OSD rotation (deg CW) the server applied
   const [previewSrc, setPreviewSrc] = useState(null);       // photo re-oriented to match the read
   const editSeededRef = useRef(false);                      // skip re-verifying the initial /read grid
@@ -255,7 +265,12 @@ function App() {
       form.append('grid', JSON.stringify(editGrid));
       fetch(VERIFY_URL, { method: 'POST', body: form })
         .then((res) => (res.ok ? res.json() : null))
-        .then((data) => { if (data) setWarningCells(data.warning_cells || []); })
+        .then((data) => {
+          if (data) {
+            setWarningCells(data.warning_cells || []);
+            setErrorCells(data.error_cells || []);
+          }
+        })
         .catch((e) => console.error('Verify error:', e));
     }, 300);
     return () => clearTimeout(timer);
@@ -330,6 +345,7 @@ function App() {
       setGrid(data.grid);
       setEditable(data.editable);
       setWarningCells(data.warning_cells || []);
+      setErrorCells(data.error_cells || []);
       setRotation(data.rotation || 0);
       // Seed the editable copy now so the (always-mounted) edit panel has data.
       // The seed matches the read, so don't re-verify it (its warnings came from /read).
@@ -358,6 +374,7 @@ function App() {
   };
 
   const thumbsUp = () => {
+    if (hasErrors) return;   // errors block accept; the button is disabled too
     sendVerdict(ACCEPT_URL);
     setFeedbackMode('up');   // pan right
   };
@@ -414,9 +431,11 @@ function App() {
     return new Blob([u8arr], { type: mime });
   }
 
-  // Cells a consistency warning applies to, as a Set of "r,c" keys for quick lookup.
+  // Cells a consistency check flags, as Sets of "r,c" keys for quick lookup.
   const warnedSet = new Set(warningCells.map(([r, c]) => `${r},${c}`));
+  const erroredSet = new Set(errorCells.map(([r, c]) => `${r},${c}`));
   const hasWarnings = warningCells.length > 0;
+  const hasErrors = errorCells.length > 0;  // blocks accept (thumbs-up) and submit
 
   // Photo preview shown inside every result dialog, above the rendered table.
   // previewSrc is the photo re-oriented (upright) to match the recognized grid.
@@ -507,6 +526,11 @@ function App() {
                     <p>Enter exactly what is <strong>written on the scorecard</strong>, even if it
                       doesn&rsquo;t make sense — wrong arithmetic, an impossible score, a miscounted
                       total. Don&rsquo;t correct the player&rsquo;s mistakes; record the paper as-is.</p>
+                    <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> outline is a warning
+                      (a score or total that doesn&rsquo;t match the numbers); a
+                      <strong style={{ color: '#ff4d4d' }}> red</strong> outline is an error (the
+                      points don&rsquo;t add up). The highlights update as you type — <strong>Submit</strong> 
+                      stays disabled while any red remains, but yellow won&rsquo;t block you.</p>
                     <p>Your corrections are saved as ground truth to help improve the recognition.</p>
                   </InfoButton>
                   <h2>Bad read</h2>
@@ -519,6 +543,7 @@ function App() {
                           editable={editable}
                           onCell={updateCell}
                           warned={warnedSet}
+                          errored={erroredSet}
                         />
                       )}
                     </div>
@@ -535,7 +560,9 @@ function App() {
                   ) : (
                     <>
                       <p className="result-prompt">
-                        Fix any wrong numbers, then submit to help improve recognition.
+                        {hasErrors
+                          ? 'Fix the cells outlined in red — their points don’t add up — then submit.'
+                          : 'Fix any wrong numbers, then submit to help improve recognition.'}
                       </p>
                       <div className="result-actions">
                         <button type="button" className="result-secondary" onClick={() => setFeedbackMode('none')}>
@@ -547,7 +574,7 @@ function App() {
                         <button
                           type="button"
                           onClick={submitCorrection}
-                          disabled={submitState === 'saving'}
+                          disabled={submitState === 'saving' || hasErrors}
                         >
                           {submitState === 'saving' ? 'Submitting…' : 'Submit'}
                         </button>
@@ -563,21 +590,38 @@ function App() {
                 <section className="result-panel">
                   <InfoButton>
                     <p>This is what Balut Eye read from your photo. Strikes show as <code>x</code>.</p>
+                    <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> cell is a warning —
+                      a score or total that doesn&rsquo;t match what the numbers add up to. It&rsquo;s
+                      just a heads-up; you can still accept.</p>
+                    <p>A <strong style={{ color: '#ff4d4d' }}>red</strong> cell is an error — the
+                      points don&rsquo;t add up. 👍 is disabled until you fix it, so press 👎 to
+                      correct the sheet.</p>
                     <p>Press 👍 if it looks right, or 👎 to fix any wrong numbers.</p>
                   </InfoButton>
                   <h2>Scorecard</h2>
                   <div className="result-scroll">
                     {imagePreview}
                     <div className="result-table-wrap">
-                      <ResultTable grid={grid} />
+                      <ResultTable grid={grid} warned={warnedSet} errored={erroredSet} />
                     </div>
                   </div>
-                  <p className="result-prompt">Does this look right?</p>
+                  <p className="result-prompt">
+                    {hasErrors
+                      ? 'The cells outlined in red don’t add up — press 👎 to fix them before accepting.'
+                      : 'Does this look right?'}
+                  </p>
                   <div className="result-actions">
                     <button type="button" className="result-secondary" onClick={closeResult}>
                       Close
                     </button>
-                    <button type="button" className="thumb" onClick={thumbsUp} aria-label="Good read" title="Good read">
+                    <button
+                      type="button"
+                      className="thumb"
+                      onClick={thumbsUp}
+                      disabled={hasErrors}
+                      aria-label="Good read"
+                      title={hasErrors ? 'Fix the cells outlined in red first' : 'Good read'}
+                    >
                       👍
                     </button>
                     <button
@@ -597,14 +641,17 @@ function App() {
                   <InfoButton>
                     <p>Your scorecard was read correctly. Download it as a <strong>CSV</strong>
                       (plain text) or an <strong>Excel</strong> (.xlsx) file.</p>
+                    <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> cell is a warning — a
+                      score or total that doesn&rsquo;t match what the numbers add up to. It
+                      didn&rsquo;t block accepting, but double-check it before you rely on the export.</p>
                   </InfoButton>
                   <h2>Good read</h2>
                   <div className="result-scroll">
                     {imagePreview}
                     <div className="result-table-wrap checked">
                       <div className="scorecard-stamp">
-                        <ResultTable grid={grid} warned={warnedSet} />
-                        {!hasWarnings && (
+                        <ResultTable grid={grid} warned={warnedSet} errored={erroredSet} />
+                        {!hasWarnings && !hasErrors && (
                           <span className="scorecard-check" aria-hidden="true">✓</span>
                         )}
                       </div>

@@ -145,11 +145,20 @@ button:disabled {
 }
 
 /* Narrow yellow box around a number a consistency warning applies to
-   (read/accept dialogs, and static cells in the correction dialog). */
+   (advisory; shown in all three dialogs and on static cells in the correction one). */
 .warn-box {
   display: inline-block;
   padding: 0 2px;
   border: 1px solid #ffd633;
+  border-radius: 3px;
+}
+
+/* Red box around a number a consistency error applies to (blocking: accept/submit
+   are disabled until it's fixed). Same footprint as .warn-box but red. */
+.error-box {
+  display: inline-block;
+  padding: 0 2px;
+  border: 1px solid #ff4d4d;
   border-radius: 3px;
 }
 
@@ -431,6 +440,12 @@ button:disabled {
 .result-table.editable td input.warn {
   border-color: #ffd633;
   box-shadow: 0 0 0 1px #ffd633;
+}
+
+/* Correction dialog: an errored cell's text box gets a red frame (blocks submit). */
+.result-table.editable td input.error {
+  border-color: #ff4d4d;
+  box-shadow: 0 0 0 1px #ff4d4d;
 }
 
 /* --- Phones: shrink the result dialogs so the full 10x8 grid fits the screen --- */
