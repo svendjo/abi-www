@@ -475,9 +475,10 @@ function App() {
         <InfoButton>
           <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
           <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
-            10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>. A cell
-            crossed out (<code>/</code> <code>\</code> <code>x</code> <code>X</code> <code>-</code>)
-            or left blank counts as a strike (shown as <code>x</code>).</p>
+            10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>. In a game
+            or Jackpot cell, a mark of <code>/</code> <code>-</code> <code>\</code> <code>x</code>{' '}
+            <code>X</code> — or a blank cell — counts as a strike, and is shown as <code>x</code>.
+            The Score and Points columns take no strike: a blank there is just <code>0</code>.</p>
         </InfoButton>
         <h1>Balut Eye</h1>
         <p className="tagline">Take a photo of a Balut scorecard.</p>
@@ -543,7 +544,9 @@ function App() {
                 <section className="result-panel">
                   <InfoButton>
                     <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
-                      handwritten cells are editable — type <code>x</code> for a strike.</p>
+                      handwritten cells are editable — type <code>x</code> for a strike in a game
+                      or Jackpot cell. The Score and Points columns take no strike; write the
+                      number, using <code>0</code> where the cell is blank.</p>
                     <p>Enter exactly what is <strong>written on the scorecard</strong>, even if it
                       doesn&rsquo;t make sense — wrong arithmetic, an impossible score, a miscounted
                       total. Don&rsquo;t correct the player&rsquo;s mistakes; record the paper as-is.</p>
