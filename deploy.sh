@@ -3,8 +3,9 @@
 # Deploy abi-www to AWS (S3 + CloudFront).
 #
 # Quick update of the already-set-up site (see abi-server/DEPLOY.md for the full
-# guide and the one-time setup). Make sure the *_URL constants in src/App.js point
-# at the deployed abi-server, and that you're signed in to AWS, before running.
+# guide and the one-time setup). `npm run build` selects the aws-prod entry in
+# src/config.js, so the bundle points at the deployed abi-server automatically --
+# just make sure you're signed in to AWS before running.
 #
 # Usage: ./deploy.sh
 set -euo pipefail

@@ -5,9 +5,12 @@ Upload a photo of a 10×8 score sheet; the app sends it to `abi-server`, which
 reads the handwritten numbers and returns a 10×8 grid that is rendered as a table
 (and saved server-side as a CSV).
 
-The server URLs live in `src/App.js` as `READ_URL` / `ACCEPT_URL` / `DECLINE_URL` /
-`SUBMIT_URL` (all default to `http://localhost:8080`). Point them at the deployed
-`abi-server` before building for production.
+The server URL lives in `src/config.js`, which picks an environment the way
+`abi-server`'s `APP_ENV` does: `npm start` selects `local-dev`
+(`http://localhost:8080`) and `npm run build` selects `aws-prod` (the App Runner
+URL). `src/App.js` derives `READ_URL` / `ACCEPT_URL` / `DECLINE_URL` / `SUBMIT_URL` /
+`VERIFY_URL` from that `apiBase`, so there is nothing to edit before a production
+build. Set `REACT_APP_ENV` to override (e.g. point a local `npm start` at prod).
 
 ## Local
 Node / npm is already installed through homebrew. Install the website.
@@ -24,8 +27,9 @@ Make sure `abi-server` is running on `http://localhost:8080` so uploads work.
 Full end-to-end guide (incl. backend and the one-time S3 + CloudFront setup):
 **[abi-server/DEPLOY.md](../abi-server/DEPLOY.md)**.
 
-Quick update of an already-set-up site — first point the `*_URL`s in `src/App.js`
-at the deployed `abi-server`, then:
+Quick update of an already-set-up site — `./deploy.sh` runs all three steps below.
+`npm run build` selects the `aws-prod` entry in `src/config.js`, so the bundle
+already points at the deployed `abi-server`.
 
 `npm run build`
 

@@ -211,8 +211,16 @@ function App() {
   const [feedbackMode, setFeedbackMode] = useState('none'); // 'none' | 'up' | 'down'
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
   const [editable, setEditable] = useState(null);           // which cells may be edited
-  const [warningCells, setWarningCells] = useState([]);     // [r,c] cells flagged by a warning (advisory)
-  const [errorCells, setErrorCells] = useState([]);         // [r,c] cells flagged by an error (blocks accept/submit)
+  // Consistency issues come from two places and must not be conflated. `read*` are
+  // the issues in the grid the READ and ACCEPT dialogs render (from /read, or from
+  // /verify once a correction is submitted and promoted into `grid`); they gate 👍.
+  // `edit*` track the live edit grid via /verify on every keystroke; they gate Submit.
+  // Sharing one set let a user clear the red in the decline panel, press Back, and
+  // then accept the still-broken original read.
+  const [readWarningCells, setReadWarningCells] = useState([]);
+  const [readErrorCells, setReadErrorCells] = useState([]);
+  const [editWarningCells, setEditWarningCells] = useState([]);
+  const [editErrorCells, setEditErrorCells] = useState([]);
   const [rotation, setRotation] = useState(0);              // OSD rotation (deg CW) the server applied
   const [previewSrc, setPreviewSrc] = useState(null);       // photo re-oriented to match the read
   const editSeededRef = useRef(false);                      // skip re-verifying the initial /read grid
@@ -269,8 +277,9 @@ function App() {
   }, [showResult, feedbackMode]);
 
   // Re-check the correction grid against the server on every edit (debounced) so the
-  // yellow warning highlights update live as the user fixes cells. The first run
-  // (initial seed from /read) is skipped -- those warnings already came from /read.
+  // highlights in the decline panel update live as the user fixes cells. Only the
+  // `edit*` sets move; the read dialog keeps showing its own read's issues. The first
+  // run (initial seed from /read) is skipped -- those issues already came from /read.
   useEffect(() => {
     if (!editGrid) return undefined;
     if (!editSeededRef.current) { editSeededRef.current = true; return undefined; }
@@ -281,8 +290,8 @@ function App() {
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data) {
-            setWarningCells(data.warning_cells || []);
-            setErrorCells(data.error_cells || []);
+            setEditWarningCells(data.warning_cells || []);
+            setEditErrorCells(data.error_cells || []);
           }
         })
         .catch((e) => console.error('Verify error:', e));
@@ -358,8 +367,11 @@ function App() {
       const data = await response.json();
       setGrid(data.grid);
       setEditable(data.editable);
-      setWarningCells(data.warning_cells || []);
-      setErrorCells(data.error_cells || []);
+      // Both views start from the read's own issues; only the edit copy then tracks /verify.
+      setReadWarningCells(data.warning_cells || []);
+      setReadErrorCells(data.error_cells || []);
+      setEditWarningCells(data.warning_cells || []);
+      setEditErrorCells(data.error_cells || []);
       setRotation(data.rotation || 0);
       // Seed the editable copy now so the (always-mounted) edit panel has data.
       // The seed matches the read, so don't re-verify it (its warnings came from /read).
@@ -429,8 +441,11 @@ function App() {
       const res = await fetch(SUBMIT_URL, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
       // Promote the corrected edit grid so the accept dialog renders and exports the
-      // player's corrections, not the original read.
+      // player's corrections, not the original read -- and with it the edit grid's
+      // issues, which are now the ones the displayed grid actually has.
       setGrid(editGrid.map((row) => row.map(toGridValue)));
+      setReadWarningCells(editWarningCells);
+      setReadErrorCells(editErrorCells);
       setSubmitState('done');
       setFlowState('submitted');  // one-way latch
       setFeedbackMode('up');      // pan to the accept dialog
@@ -452,11 +467,17 @@ function App() {
     return new Blob([u8arr], { type: mime });
   }
 
-  // Cells a consistency check flags, as Sets of "r,c" keys for quick lookup.
-  const warnedSet = new Set(warningCells.map(([r, c]) => `${r},${c}`));
-  const erroredSet = new Set(errorCells.map(([r, c]) => `${r},${c}`));
-  const hasWarnings = warningCells.length > 0;
-  const hasErrors = errorCells.length > 0;  // blocks accept (thumbs-up) and submit
+  // Cells a consistency check flags, as Sets of "r,c" keys for quick lookup. The
+  // read/accept dialogs highlight (and gate on) the issues of the grid they render;
+  // the decline dialog highlights (and gates on) the issues of the grid being edited.
+  const cellSet = (cells) => new Set(cells.map(([r, c]) => `${r},${c}`));
+  const warnedSet = cellSet(readWarningCells);
+  const erroredSet = cellSet(readErrorCells);
+  const editWarnedSet = cellSet(editWarningCells);
+  const editErroredSet = cellSet(editErrorCells);
+  const hasWarnings = readWarningCells.length > 0;
+  const hasErrors = readErrorCells.length > 0;      // blocks accept (thumbs-up)
+  const editHasErrors = editErrorCells.length > 0;  // blocks submit
 
   // Photo preview shown inside every result dialog, above the rendered table.
   // previewSrc is the photo re-oriented (upright) to match the recognized grid.
@@ -566,8 +587,8 @@ function App() {
                           editGrid={editGrid}
                           editable={editable}
                           onCell={updateCell}
-                          warned={warnedSet}
-                          errored={erroredSet}
+                          warned={editWarnedSet}
+                          errored={editErroredSet}
                         />
                       )}
                     </div>
@@ -584,7 +605,7 @@ function App() {
                   ) : (
                     <>
                       <p className="result-prompt">
-                        {hasErrors
+                        {editHasErrors
                           ? 'Fix the cells outlined in red — their points don’t add up — then submit.'
                           : 'Fix any wrong numbers, then submit to help improve recognition.'}
                       </p>
@@ -598,7 +619,7 @@ function App() {
                         <button
                           type="button"
                           onClick={submitCorrection}
-                          disabled={submitState === 'saving' || hasErrors}
+                          disabled={submitState === 'saving' || editHasErrors}
                         >
                           {submitState === 'saving' ? 'Submitting…' : 'Submit'}
                         </button>
