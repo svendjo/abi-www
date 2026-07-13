@@ -63,6 +63,28 @@ function toGridValue(v) {
   return /^-?\d+$/.test(s) ? Number(s) : v;
 }
 
+// Columns (0-indexed) where a 0 means a STRIKE, not a real zero: the four game cells
+// (1-4) and the Jackpot column (6). In the Score (5) and Points (7) columns a 0 is a
+// real zero. Matches scorecard.strikes_allowed for the cells that are editable. The
+// decline dialog uses a numeric keypad, so a strike is entered as 0 there; the
+// canonical grid (read dialog, CSV/Excel, feedback, training) still uses "x".
+const STRIKE_COLS = new Set([1, 2, 3, 4, 6]);
+
+// Canonical grid -> edit representation: a strike "x" in a strike column shows as 0
+// in the numeric editor (everything else is already a number or blank).
+function toEditValue(v, c) {
+  if (v === '' || v == null) return '';
+  const s = String(v);
+  return STRIKE_COLS.has(c) && (s === 'x' || s === 'X') ? '0' : s;
+}
+
+// Edit representation -> canonical: a 0 in a strike column is a strike, stored and
+// displayed as "x"; otherwise fall back to toGridValue.
+function fromEditValue(v, c) {
+  if (STRIKE_COLS.has(c) && String(v).trim() === '0') return 'x';
+  return toGridValue(v);
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -149,6 +171,10 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored }) => {
                   {editable?.[r]?.[c] ? (
                     <input
                       type="text"
+                      // The Points column (index 7: B8-H8, I8, J8) can be negative, and
+                      // iOS's numeric pad has no minus key -- give it the standard
+                      // keyboard (which does). Every other editable cell is unsigned.
+                      inputMode={c === 7 ? 'text' : 'numeric'}
                       className={inputCls}
                       value={value}
                       onChange={(e) => onCell(r, c, e.target.value)}
@@ -361,7 +387,23 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded ${response.status}`);
+        // Show the server's error detail verbatim -- the backend scrubs it, so we
+        // don't inspect the error type here. `detail` is the message string; an
+        // object detail falls back to its `message`, then to a raw dump.
+        let detail = null;
+        try {
+          detail = (await response.json()).detail;
+        } catch (e) {
+          /* non-JSON error body */
+        }
+        setStatus(
+          typeof detail === 'string'
+            ? detail
+            : detail && typeof detail === 'object'
+            ? detail.message || JSON.stringify(detail)
+            : `The sheet could not be read (status ${response.status}).`
+        );
+        return;
       }
 
       const data = await response.json();
@@ -376,7 +418,7 @@ function App() {
       // Seed the editable copy now so the (always-mounted) edit panel has data.
       // The seed matches the read, so don't re-verify it (its warnings came from /read).
       editSeededRef.current = false;
-      setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
+      setEditGrid(data.grid.map((row) => row.map((v, c) => toEditValue(v, c))));
       setResultId(data.id);
       setFeedbackMode('none');
       setSubmitState('idle');
@@ -435,15 +477,19 @@ function App() {
   const submitCorrection = async () => {
     setSubmitState('saving');
     try {
+      // Translate the numeric edit grid to canonical form (a 0 in a strike column
+      // becomes "x") for both storage and display, so feedback/training and the
+      // accept dialog match the read dialog's representation.
+      const canonical = editGrid.map((row) => row.map((v, c) => fromEditValue(v, c)));
       const form = new FormData();
       form.append('id', resultId);
-      form.append('grid', JSON.stringify(editGrid));
+      form.append('grid', JSON.stringify(canonical));
       const res = await fetch(SUBMIT_URL, { method: 'POST', body: form });
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
-      // Promote the corrected edit grid so the accept dialog renders and exports the
+      // Promote the corrected grid so the accept dialog renders and exports the
       // player's corrections, not the original read -- and with it the edit grid's
       // issues, which are now the ones the displayed grid actually has.
-      setGrid(editGrid.map((row) => row.map(toGridValue)));
+      setGrid(canonical);
       setReadWarningCells(editWarningCells);
       setReadErrorCells(editErrorCells);
       setSubmitState('done');
@@ -496,10 +542,11 @@ function App() {
         <InfoButton>
           <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
           <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
-            10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>. In a game
-            or Jackpot cell, a mark of <code>/</code> <code>-</code> <code>\</code> <code>x</code>{' '}
-            <code>X</code> — or a blank cell — counts as a strike, and is shown as <code>x</code>.
-            The Score and Points columns take no strike: a blank there is just <code>0</code>.</p>
+            10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>.</p>
+          <p>The card must be <strong>completely filled in</strong> — every cell needs a number or a
+            strike, or the read is rejected. In a game or Jackpot cell, a crossed-out mark
+            (<code>/</code> <code>-</code> <code>\</code> <code>x</code> <code>X</code>) is a strike,
+            shown as <code>x</code>. The Score and Points columns take no strike.</p>
         </InfoButton>
         <h1>Balut Eye</h1>
         <p className="tagline">Take a photo of a Balut scorecard.</p>
@@ -565,16 +612,21 @@ function App() {
                 <section className="result-panel">
                   <InfoButton>
                     <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
-                      handwritten cells are editable — type <code>x</code> for a strike in a game
-                      or Jackpot cell. The Score and Points columns take no strike; write the
-                      number, using <code>0</code> where the cell is blank.</p>
+                      handwritten cells are editable, and on a phone they bring up a number keypad
+                      (the Points column keeps a minus key, for negative points).
+                      In a game or Jackpot cell (columns 2&ndash;5 and 7), enter <code>0</code> for a
+                      <strong> strike</strong> — it shows as <code>x</code> once submitted. In the
+                      Score and Points columns (6 and 8), <code>0</code> is a real zero.</p>
+                    <p>The card must be <strong>completely filled in</strong> — every editable cell
+                      needs a number (a <code>0</code> counts).</p>
                     <p>Enter exactly what is <strong>written on the scorecard</strong>, even if it
                       doesn&rsquo;t make sense — wrong arithmetic, an impossible score, a miscounted
                       total. Don&rsquo;t correct the player&rsquo;s mistakes; record the paper as-is.</p>
                     <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> outline is a warning
                       (a score or total that doesn&rsquo;t match the numbers); a
                       <strong style={{ color: '#ff4d4d' }}> red</strong> outline is an error (the
-                      points don&rsquo;t add up). The highlights update as you type — the <strong>Submit</strong>{' '}
+                      points don&rsquo;t add up, or a cell is left empty). The highlights update as
+                      you type — the <strong>Submit</strong>{' '}
                       button stays disabled while any red remains, but yellow won&rsquo;t block you.</p>
                     <p>Your corrections are saved as ground truth to help improve the recognition.</p>
                   </InfoButton>
