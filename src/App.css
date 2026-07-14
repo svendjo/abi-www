@@ -458,11 +458,15 @@ button:disabled {
 .strike-balloon {
   position: absolute;
   left: 50%;
+  margin-left: -1em;     /* centre a 2em bubble WITHOUT a transform, so the global
+                            button:hover scale() can't knock it off-centre (desktop) */
   bottom: calc(100% + 6px);
-  transform: translateX(-50%);
   z-index: 20;
   width: 2em;
   height: 2em;
+  min-width: 0;          /* override the global button min-width:200px (was very wide) */
+  max-width: none;
+  flex: none;
   padding: 0;
   display: flex;
   align-items: center;
@@ -470,6 +474,7 @@ button:disabled {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
+  text-transform: none;
   color: #12220c;
   background: #aedd8f;
   border: 1px solid #6a9651;

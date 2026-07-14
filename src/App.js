@@ -165,7 +165,9 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored, focusedCel
                         className={inputCls}
                         value={value}
                         onChange={(e) => onCell(r, c, e.target.value)}
-                        onFocus={() => onFocusCell(`${r},${c}`)}
+                        // Selecting a cell clears it, so you can just type the correct
+                        // value (or tap the x bubble) instead of deleting first.
+                        onFocus={() => { onFocusCell(`${r},${c}`); onCell(r, c, ''); }}
                         onBlur={() => onFocusCell((f) => (f === `${r},${c}` ? null : f))}
                         aria-label={`row ${r + 1} column ${c + 1}`}
                       />
@@ -622,8 +624,8 @@ function App() {
                 <section className="result-panel">
                   <InfoButton>
                     <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
-                      handwritten cells are editable, and on a phone they bring up a number keypad
-                      (the Points column keeps a minus key, for negative points).
+                      handwritten cells are editable; selecting one clears it, so just type the
+                      correct value. On a phone they bring up a number keypad.
                       In a game or Jackpot cell, tap the <code>x</code> bubble above the box to mark a
                       <strong> strike</strong> (a <code>0</code> isn&rsquo;t allowed there). The Score
                       column takes a real <code>0</code>; the Points column brings up the full keyboard
