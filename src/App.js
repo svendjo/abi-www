@@ -63,27 +63,12 @@ function toGridValue(v) {
   return /^-?\d+$/.test(s) ? Number(s) : v;
 }
 
-// Columns (0-indexed) where a 0 means a STRIKE, not a real zero: the four game cells
-// (1-4) and the Jackpot column (6). In the Score (5) and Points (7) columns a 0 is a
-// real zero. Matches scorecard.strikes_allowed for the cells that are editable. The
-// decline dialog uses a numeric keypad, so a strike is entered as 0 there; the
-// canonical grid (read dialog, CSV/Excel, feedback, training) still uses "x".
+// Strike columns (0-indexed): the four game cells (1-4) and the Jackpot column (6) --
+// where a strike is legal (matches scorecard.strikes_allowed for the editable cells).
+// In the decline editor these cells show an "x" strike-picker bubble on focus and
+// block a typed standalone 0 (0 isn't a legal value there; a strike is "x"). The Score
+// (5) and Points (7) columns take a real 0 / negative and get no bubble.
 const STRIKE_COLS = new Set([1, 2, 3, 4, 6]);
-
-// Canonical grid -> edit representation: a strike "x" in a strike column shows as 0
-// in the numeric editor (everything else is already a number or blank).
-function toEditValue(v, c) {
-  if (v === '' || v == null) return '';
-  const s = String(v);
-  return STRIKE_COLS.has(c) && (s === 'x' || s === 'X') ? '0' : s;
-}
-
-// Edit representation -> canonical: a 0 in a strike column is a strike, stored and
-// displayed as "x"; otherwise fall back to toGridValue.
-function fromEditValue(v, c) {
-  if (STRIKE_COLS.has(c) && String(v).trim() === '0') return 'x';
-  return toGridValue(v);
-}
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -153,7 +138,7 @@ const ResultTable = ({ grid, warned, errored }) => {
 // printed labels and always-blank cells stay static text. Flagged cells get a
 // coloured frame (on the input, or a box around static text): yellow for a warning,
 // red for an error (error wins when a cell is in both).
-const EditableTable = ({ editGrid, editable, onCell, warned, errored }) => {
+const EditableTable = ({ editGrid, editable, onCell, warned, errored, focusedCell, onFocusCell }) => {
   return (
     <table className="result-table editable">
       <tbody>
@@ -167,19 +152,39 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored }) => {
               const inputCls = isErrored ? 'error' : isWarned ? 'warn' : undefined;
               const boxCls = isErrored ? 'error-box' : isWarned ? 'warn-box' : null;
               return (
-                <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}>
+                <td key={c} colSpan={cellSpan(r, c)} style={blockBorder(r, c)}
+                    className={editable?.[r]?.[c] ? 'edit-cell' : undefined}>
                   {editable?.[r]?.[c] ? (
-                    <input
-                      type="text"
-                      // The Points column (index 7: B8-H8, I8, J8) can be negative, and
-                      // iOS's numeric pad has no minus key -- give it the standard
-                      // keyboard (which does). Every other editable cell is unsigned.
-                      inputMode={c === 7 ? 'text' : 'numeric'}
-                      className={inputCls}
-                      value={value}
-                      onChange={(e) => onCell(r, c, e.target.value)}
-                      aria-label={`row ${r + 1} column ${c + 1}`}
-                    />
+                    <>
+                      <input
+                        type="text"
+                        // The Points column (index 7: B8-H8, I8, J8) can be negative, and
+                        // iOS's numeric pad has no minus key -- give it the standard
+                        // keyboard (which does). Every other editable cell is unsigned.
+                        inputMode={c === 7 ? 'text' : 'numeric'}
+                        className={inputCls}
+                        value={value}
+                        onChange={(e) => onCell(r, c, e.target.value)}
+                        onFocus={() => onFocusCell(`${r},${c}`)}
+                        onBlur={() => onFocusCell((f) => (f === `${r},${c}` ? null : f))}
+                        aria-label={`row ${r + 1} column ${c + 1}`}
+                      />
+                      {/* Strike-picker bubble: only on a focused game/Jackpot cell. It
+                          writes an "x" strike -- handy on a phone numpad that has no x.
+                          pointerDown fires before the input's blur; preventDefault keeps
+                          the input focused so the tap registers and the bubble stays. */}
+                      {STRIKE_COLS.has(c) && focusedCell === `${r},${c}` && (
+                        <button
+                          type="button"
+                          className="strike-balloon"
+                          onPointerDown={(e) => { e.preventDefault(); onCell(r, c, 'x'); }}
+                          aria-label="Mark this cell a strike"
+                          title="Strike"
+                        >
+                          x
+                        </button>
+                      )}
+                    </>
                   ) : boxCls ? (
                     <span className={boxCls}>{value}</span>
                   ) : (
@@ -237,6 +242,7 @@ function App() {
   const [feedbackMode, setFeedbackMode] = useState('none'); // 'none' | 'up' | 'down'
   const [editGrid, setEditGrid] = useState(null);           // working copy for 'down'
   const [editable, setEditable] = useState(null);           // which cells may be edited
+  const [focusedCell, setFocusedCell] = useState(null);     // "r,c" of the focused edit input (drives the strike bubble)
   // Consistency issues come from two places and must not be conflated. `read*` are
   // the issues in the grid the READ and ACCEPT dialogs render (from /read, or from
   // /verify once a correction is submitted and promoted into `grid`); they gate 👍.
@@ -418,7 +424,7 @@ function App() {
       // Seed the editable copy now so the (always-mounted) edit panel has data.
       // The seed matches the read, so don't re-verify it (its warnings came from /read).
       editSeededRef.current = false;
-      setEditGrid(data.grid.map((row) => row.map((v, c) => toEditValue(v, c))));
+      setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
       setResultId(data.id);
       setFeedbackMode('none');
       setSubmitState('idle');
@@ -455,6 +461,10 @@ function App() {
   };
 
   const updateCell = (r, c, value) => {
+    // In a strike column (game + Jackpot) a standalone 0 isn't a legal value -- a
+    // strike is entered via the x-bubble. Ignore it so the numpad can't produce a
+    // bogus 0. (Digits, "x", and numbers containing 0 like 10/20 pass through.)
+    if (STRIKE_COLS.has(c) && /^0+$/.test(value.trim())) return;
     setEditGrid((prev) =>
       prev.map((row, ri) => (ri === r ? row.map((v, ci) => (ci === c ? value : v)) : row))
     );
@@ -477,10 +487,10 @@ function App() {
   const submitCorrection = async () => {
     setSubmitState('saving');
     try {
-      // Translate the numeric edit grid to canonical form (a 0 in a strike column
-      // becomes "x") for both storage and display, so feedback/training and the
-      // accept dialog match the read dialog's representation.
-      const canonical = editGrid.map((row) => row.map((v, c) => fromEditValue(v, c)));
+      // Normalize the edit grid to canonical form (numeric strings -> numbers; "x"
+      // strikes and labels stay as-is) for both storage and display, so feedback/
+      // training and the accept dialog match the read dialog's representation.
+      const canonical = editGrid.map((row) => row.map(toGridValue));
       const form = new FormData();
       form.append('id', resultId);
       form.append('grid', JSON.stringify(canonical));
@@ -614,11 +624,12 @@ function App() {
                     <p>Fix any cells Balut Eye read wrong, then <strong>Submit</strong>. Only the
                       handwritten cells are editable, and on a phone they bring up a number keypad
                       (the Points column keeps a minus key, for negative points).
-                      In a game or Jackpot cell (columns 2&ndash;5 and 7), enter <code>0</code> for a
-                      <strong> strike</strong> — it shows as <code>x</code> once submitted. In the
-                      Score and Points columns (6 and 8), <code>0</code> is a real zero.</p>
+                      In a game or Jackpot cell, tap the <code>x</code> bubble above the box to mark a
+                      <strong> strike</strong> (a <code>0</code> isn&rsquo;t allowed there). The Score
+                      column takes a real <code>0</code>; the Points column brings up the full keyboard
+                      (for negatives).</p>
                     <p>The card must be <strong>completely filled in</strong> — every editable cell
-                      needs a number (a <code>0</code> counts).</p>
+                      needs a value (a number or an <code>x</code> strike).</p>
                     <p>Enter exactly what is <strong>written on the scorecard</strong>, even if it
                       doesn&rsquo;t make sense — wrong arithmetic, an impossible score, a miscounted
                       total. Don&rsquo;t correct the player&rsquo;s mistakes; record the paper as-is.</p>
@@ -641,6 +652,8 @@ function App() {
                           onCell={updateCell}
                           warned={editWarnedSet}
                           errored={editErroredSet}
+                          focusedCell={focusedCell}
+                          onFocusCell={setFocusedCell}
                         />
                       )}
                     </div>

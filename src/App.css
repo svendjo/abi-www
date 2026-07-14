@@ -448,6 +448,49 @@ button:disabled {
   box-shadow: 0 0 0 1px #ff4d4d;
 }
 
+/* Anchor for the strike bubble (only editable game/Jackpot cells get one). */
+.result-table.editable td.edit-cell {
+  position: relative;
+}
+
+/* Strike-picker bubble: pops above the focused game/Jackpot cell so a strike can be
+   entered without an "x" key (phone numpads have none). Tapping it writes an "x". */
+.strike-balloon {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 2em;
+  height: 2em;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #12220c;
+  background: #aedd8f;
+  border: 1px solid #6a9651;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.strike-balloon::after {          /* downward tail pointing at the input */
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #aedd8f;
+}
+.strike-balloon:active {
+  background: #9acb7a;
+}
+
 /* --- Phones: shrink the result dialogs so the full 10x8 grid fits the screen --- */
 @media (max-width: 600px) {
   .result-overlay { padding: 6px; }
