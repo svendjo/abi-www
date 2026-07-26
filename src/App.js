@@ -472,8 +472,12 @@ function App() {
     );
   };
 
-  const downloadCSV = () => {
-    downloadBlob(new Blob([gridToCSV(grid)], { type: 'text/csv;charset=utf-8;' }), 'scorecard.csv');
+  // .ibf = "International Balut Format" -- the plain-text scorecard export. It is
+  // literally just CSV (see gridToCSV), so the file is saved double-extensioned as
+  // `.ibf.csv`: the name shows off the format, while the trailing .csv keeps it
+  // opening straight into an editor or spreadsheet instead of prompting for an app.
+  const downloadIBF = () => {
+    downloadBlob(new Blob([gridToCSV(grid)], { type: 'text/csv;charset=utf-8;' }), 'scorecard.ibf.csv');
   };
 
   const downloadXLSX = async () => {
@@ -752,7 +756,7 @@ function App() {
                 <section className="result-panel">
                   <InfoButton>
                     <p>Your scorecard is ready — as read, or with your corrections applied.
-                      Download it as a <strong>CSV</strong> (plain text) or an
+                      Download it as an <strong>IBF</strong> (plain text) or an
                       <strong> Excel</strong> (.xlsx) file.</p>
                     <p>A <strong style={{ color: '#ffd633' }}>yellow</strong> cell is a warning — a
                       score or total that doesn&rsquo;t match what the numbers add up to. It
@@ -782,8 +786,8 @@ function App() {
                     <button type="button" className="result-secondary" onClick={closeResult}>
                       Close
                     </button>
-                    <button type="button" onClick={downloadCSV}>CSV</button>
-                    <button type="button" onClick={downloadXLSX}>Excel</button>
+                    <button type="button" onClick={downloadIBF}>.ibf</button>
+                    <button type="button" onClick={downloadXLSX}>.xlsx</button>
                   </div>
                 </section>
               </div>
