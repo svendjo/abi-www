@@ -3,6 +3,11 @@ import './App.css';
 import { apiBase } from './config';
 import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
+import teethBT from './assets/background-teeth-bt.jpg';
+
+// Backgrounds the "glitch" flicks to (see the glitch effect below). The default
+// background.jpg lives in CSS and isn't in here -- these are the brief overrides.
+const BG_VARIANTS = [matrixTL, matrixTR, teethBT];
 
 // Server endpoints; the host comes from the active environment (see config.js).
 const READ_URL = `${apiBase}/read`;
@@ -202,6 +207,31 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored, focusedCel
   );
 };
 
+// Outline camera icon for the capture button, replacing the 📷 emoji (which rendered
+// as a different picture on every platform and couldn't take the button's colour).
+// Strokes use currentColor, so it inherits the button's text colour on hover too.
+const CameraIcon = () => (
+  <svg
+    className="camera-icon"
+    viewBox="0 0 24 24"
+    width="32"
+    height="32"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {/* Body with the raised shutter housing on top */}
+    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+    <circle cx="12" cy="13.5" r="4.3" />
+    {/* Flash bulb -- filled, so it reads as a dot rather than a tiny ring */}
+    <circle cx="18.2" cy="9.8" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 // A small green "i" info badge that toggles a popover with an explanation. Sits
 // inside a view at the top-right corner (mirrors the corner dice on the left).
 const InfoButton = ({ children }) => {
@@ -274,8 +304,8 @@ function App() {
   };
 
   // Background "glitch": the default background.jpg lives in CSS; once a minute we
-  // briefly override it with one of the two near-identical matrix-corner variants
-  // (picked at random) for 500ms, then revert -- a subtle flicker effect.
+  // briefly override it with one of the BG_VARIANTS (picked at random) for 500ms,
+  // then revert -- a subtle flicker effect.
   const [bgVariant, setBgVariant] = useState(null);
   const [glitchTick, setGlitchTick] = useState(0);  // bump to replay the decline-dialog glitch
 
@@ -283,13 +313,14 @@ function App() {
     // Don't flicker for users who prefer reduced motion.
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
 
-    // Preload both variants so the brief swap is instant (no flash while loading).
-    [matrixTL, matrixTR].forEach((src) => { const img = new Image(); img.src = src; });
+    // Preload every variant so the brief swap is instant (no flash while loading).
+    BG_VARIANTS.forEach((src) => { const img = new Image(); img.src = src; });
 
     let revert;
     const interval = setInterval(() => {
-      setBgVariant(Math.random() < 0.5 ? matrixTL : matrixTR);  // flick to a corner
-      revert = setTimeout(() => setBgVariant(null), 500);       // ...then back
+      const pick = BG_VARIANTS[Math.floor(Math.random() * BG_VARIANTS.length)];
+      setBgVariant(pick);                                 // flick to a variant
+      revert = setTimeout(() => setBgVariant(null), 500);  // ...then back
     }, 60000);
 
     return () => { clearInterval(interval); clearTimeout(revert); };
@@ -590,7 +621,7 @@ function App() {
           {/* Camera button: capture="environment" opens the rear camera directly on mobile;
               on desktop the browser ignores capture and falls back to a file picker. */}
           <label className="camera-button" title="Take a photo" aria-label="Take a photo with the camera">
-            <span aria-hidden="true">📷</span>
+            <CameraIcon />
             <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} hidden />
           </label>
           <button onClick={handleSubmit} disabled={!image || loading || !accepted}>

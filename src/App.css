@@ -59,18 +59,19 @@ h1 {
   font-size: 1rem;
 }
 
-/* Camera button: opens the device camera directly on mobile (capture attr) */
+/* Camera button: opens the device camera directly on mobile (capture attr).
+   Filled green to match the "Read scorecard" button next to it -- same background,
+   black icon and same hover, so the pair reads as one set of controls. */
 .camera-button {
   display: flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  background: rgba(0, 0, 0, 0.7);
-  color: #6a9651;
+  background: #6a9651;
+  color: black;
   border: 2px solid #6a9651;
   border-radius: 8px;
   padding: 0 16px;
-  font-size: 1.4rem;
   line-height: 1;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -78,7 +79,14 @@ h1 {
 
 .camera-button:hover {
   background: #aedd8f;
+  border-color: #aedd8f;
+  transform: scale(1.05);
   box-shadow: 0 0 15px rgba(218, 165, 32, 0.5);
+}
+
+/* Sized via the svg's width/height; block kills the inline-baseline gap. */
+.camera-icon {
+  display: block;
 }
 
 /* Button styling */
