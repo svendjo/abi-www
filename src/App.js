@@ -590,6 +590,9 @@ function App() {
           <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
           <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
             10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>.</p>
+          <p>For the best read: <strong>fill the frame with the card, on a surface that contrasts
+            with the scorecard</strong>, nothing else in shot, and hold the phone square-on above it
+            rather than at an angle.</p>
           <p>The card must be <strong>completely filled in</strong> — every cell needs a number or a
             strike, or the read is rejected. In a game or Jackpot cell, a crossed-out mark
             (<code>/</code> <code>-</code> <code>\</code> <code>x</code> <code>X</code>) is a strike,
