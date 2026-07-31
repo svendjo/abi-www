@@ -1,5 +1,5 @@
 # abi-www
-Website for Balut Eye.
+Website for Balut Eye — **https://baluteye.com**.
 
 Upload a photo of a 10×8 score sheet; the app sends it to `abi-server`, which
 reads the handwritten numbers and returns a 10×8 grid that is rendered as a table
@@ -24,8 +24,13 @@ Start the website.
 Make sure `abi-server` is running on `http://localhost:8080` so uploads work.
 
 ## Deployment to AWS
-Full end-to-end guide (incl. backend and the one-time S3 + CloudFront setup):
-**[abi-server/DEPLOY.md](../abi-server/DEPLOY.md)**.
+Full end-to-end guide (incl. backend, the one-time S3 + CloudFront setup, and the
+`baluteye.com` domain): **[abi-server/DEPLOY.md](../abi-server/DEPLOY.md)**.
+
+The site is served by CloudFront `E2P072IUYX7U7M` at `baluteye.com` and
+`www.baluteye.com` (both on the same distribution, no redirect between them).
+Deploying doesn't touch DNS or the certificate — it's still just build, sync,
+invalidate.
 
 Quick update of an already-set-up site — `./deploy.sh` runs all three steps below.
 `npm run build` selects the `aws-prod` entry in `src/config.js`, so the bundle
