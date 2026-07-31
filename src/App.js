@@ -428,7 +428,10 @@ function App() {
       if (!response.ok) {
         // Show the server's error detail verbatim -- the backend scrubs it, so we
         // don't inspect the error type here. `detail` is the message string; an
-        // object detail falls back to its `message`, then to a raw dump.
+        // object detail falls back to its `message`, then to a raw dump. That
+        // covers every case abi-server explains, including the 429 when /read has
+        // been called too often (its `{message, retry_after}` already says how long
+        // to wait in words) -- so a rate limit needs no code here beyond this note.
         let detail = null;
         try {
           detail = (await response.json()).detail;
