@@ -640,7 +640,7 @@ function App() {
           </div>
         )}
 
-        <div className="copyright">© {new Date().getFullYear()} Svend K. Johannsen. All rights reserved. v1.0</div>
+        <div className="copyright">© {new Date().getFullYear()} S.K.J. All rights reserved. v1.0</div>
       </div>
 
       {showResult && grid && (
