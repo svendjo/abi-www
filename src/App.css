@@ -339,6 +339,80 @@ button:disabled {
   background: rgba(106, 150, 81, 0.15);
 }
 
+/* Sign-in dialog — built on the terms modal's shell (.terms-modal / .terms-actions),
+   so only the fields inside need styling. Narrower than the terms text, which is a
+   wall of prose; this is one input and a sentence. */
+.login-modal {
+  max-width: 420px;
+}
+
+.login-body {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.login-body p {
+  margin: 0 0 0.9em;
+}
+
+/* Inputs are styled here rather than inherited: the only other text inputs on the
+   site are the scorecard's edit cells, which are tiny, centred and borderless. */
+.login-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: #aedd8f;
+  box-shadow: 0 0 10px rgba(106, 150, 81, 0.5);
+}
+
+.login-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* The six-digit field: monospace and widely tracked so the digits read as a code and
+   are easy to check against the email. */
+.login-code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-size: 1.6rem;
+  letter-spacing: 0.4em;
+  text-align: center;
+  /* letter-spacing adds a trailing gap after the last digit, which visually shifts
+     the group left; the indent puts it back in the middle. */
+  text-indent: 0.4em;
+}
+
+.login-notice {
+  color: #aedd8f;
+}
+
+.login-error {
+  margin: 0.8em 0 0;
+  color: #ff4d4d;
+}
+
+.login-who {
+  margin: 0 0 0.2em;
+  font-size: 1.15rem;
+  font-weight: bold;
+  color: #aedd8f;
+}
+
+.login-sub {
+  margin: 0 0 0.2em;
+  font-size: 0.9rem;
+  color: #cfe6bd;
+}
+
 /* Result modal (read result + thumbs-up/down feedback) */
 .result-overlay {
   position: fixed;
@@ -728,6 +802,54 @@ button:disabled {
   line-height: 1;
   font-weight: bold;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Login control — top-right of the main page, immediately left of the (i) badge.
+   Anchored by its right edge, 68px clearing the badge: the badge's own 12px inset
+   + its 46px width + a 10px gap. (46px is the badge's FULL width, border included
+   -- the UA stylesheet gives every <button> box-sizing: border-box.) Height and
+   the outlined-dark treatment match .info-button, so the two read as one group.
+
+   The width is FIXED so the button doesn't resize when the label swaps between
+   "Login" and the signed-in 👤 -- 87px is what the word needs, and the narrower
+   glyph is centred in it by the flex centring rather than shrinking the box. The
+   horizontal padding is only breathing room for the text; it no longer sizes the
+   button, so it's kept well under the fixed width to leave margin for the label. */
+.login-button {
+  position: absolute;
+  top: 12px;
+  right: 68px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 87px;
+  height: 46px;
+  padding: 0 8px;
+  min-width: 0;
+  max-width: none;
+  flex: none;
+  border-radius: 8px;
+  border: 2px solid #6a9651;
+  background: rgba(0, 0, 0, 0.55);
+  color: #85bb65;
+  font-size: 1rem;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.login-button:hover:not(:disabled) {
+  background: rgba(106, 150, 81, 0.25);
+  box-shadow: 0 0 10px rgba(106, 150, 81, 0.5);
+  transform: none;
+}
+
+/* Signed in: the 👤 glyph stands in for the word. Emoji ignore `color`, so only the
+   size changes; the box keeps its width and the flex centring does the rest. */
+.login-button.logged-in {
+  text-transform: none;
+  font-size: 1.35rem;
 }
 
 /* Info "(i)" badge — top-right corner of the main page and each result panel.

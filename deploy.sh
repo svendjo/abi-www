@@ -23,7 +23,11 @@ echo "==> Building production bundle"
 npm run build
 
 echo "==> Syncing ./build to s3://balut-frontend"
-aws s3 sync ./build s3://balut-frontend --delete
+# --exclude keeps Finder's .DS_Store out of a public bucket. Note it also
+# exempts the key from --delete, so anything already up there must be removed
+# by hand (`aws s3 rm`) rather than waiting for a sync to clear it.
+aws s3 sync ./build s3://balut-frontend --delete \
+  --exclude ".DS_Store" --exclude "*/.DS_Store"
 
 echo "==> Invalidating CloudFront cache (/*)"
 aws cloudfront create-invalidation --distribution-id E2P072IUYX7U7M --paths "/*"

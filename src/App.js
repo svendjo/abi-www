@@ -15,6 +15,9 @@ const ACCEPT_URL = `${apiBase}/accept`;
 const DECLINE_URL = `${apiBase}/decline`;
 const SUBMIT_URL = `${apiBase}/feedback`;
 const VERIFY_URL = `${apiBase}/verify`;
+const REQUEST_CODE_URL = `${apiBase}/auth/request-code`;
+const VERIFY_CODE_URL = `${apiBase}/auth/verify`;
+const PROFILE_URL = `${apiBase}/auth/profile`;
 
 // Decline-dialog "glitch" bars: varied thickness (h, px), length (w, %), vertical
 // position/spacing (top, %) and x start (left, %); v picks one of 3 x-shift variants.
@@ -47,6 +50,46 @@ function storeTermsAcceptance(accepted) {
   } else {
     document.cookie = `${TERMS_COOKIE}=; max-age=0; path=/; SameSite=Lax`;
   }
+}
+
+// The session token from /auth/verify. localStorage rather than a cookie: this page
+// is served from baluteye.com and the API from App Runner, so a cookie would have to
+// be SameSite=None; Secure AND paired with an explicit CORS origin list on the server
+// -- the token rides in an Authorization header instead. It survives tab closes and
+// restarts, matching the 30-day session the server issues. The trade is that any
+// script running on this page can read it, which is the standard cost of not using an
+// httpOnly cookie; acceptable while a session grants nothing but identity.
+const SESSION_KEY = 'balutEyeSession';
+
+function storedSession() {
+  // Safari in private mode throws on localStorage access rather than returning null.
+  try {
+    return localStorage.getItem(SESSION_KEY) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function storeSession(token) {
+  try {
+    if (token) localStorage.setItem(SESSION_KEY, token);
+    else localStorage.removeItem(SESSION_KEY);
+  } catch (e) {
+    /* storage unavailable -- the session just won't outlive the page */
+  }
+}
+
+// abi-server's error bodies are `{detail: "..."}` or `{detail: {message, ...}}`
+// depending on the endpoint; pull something showable out of either shape.
+async function errorMessage(response, fallback) {
+  try {
+    const { detail } = await response.json();
+    if (typeof detail === 'string') return detail;
+    if (detail && typeof detail === 'object' && detail.message) return detail.message;
+  } catch (e) {
+    /* non-JSON error body */
+  }
+  return fallback;
 }
 
 function csvCell(value) {
@@ -232,6 +275,23 @@ const CameraIcon = () => (
   </svg>
 );
 
+// Login control -- top-right of the main page, immediately left of the (i) badge.
+// Shares the badge's outlined-dark treatment so the corner reads as one group (the
+// way the camera button matches "Read scorecard"). Anchored by its right edge in
+// CSS, so it stays flush against the (i) and grows leftward when the label swaps
+// between the word and the signed-in 👤.
+const LoginButton = ({ loggedIn, onClick }) => (
+  <button
+    type="button"
+    className={`login-button${loggedIn ? ' logged-in' : ''}`}
+    onClick={onClick}
+    aria-label={loggedIn ? 'Account' : 'Log in'}
+    title={loggedIn ? 'Account' : 'Log in'}
+  >
+    {loggedIn ? '👤' : 'Login'}
+  </button>
+);
+
 // A small green "i" info badge that toggles a popover with an explanation. Sits
 // inside a view at the top-right corner (mirrors the corner dice on the left).
 const InfoButton = ({ children }) => {
@@ -297,6 +357,128 @@ function App() {
   // Terms & conditions: initialise from the cookie so returning users skip it.
   const [accepted, setAccepted] = useState(hasAcceptedTerms);
   const [showTerms, setShowTerms] = useState(false);
+  // Signed-in state drives the corner button's label ("Login" vs 👤). It is only ever
+  // set from a verified server response -- /auth/verify on sign-in, or /auth/profile when
+  // an existing token is restored below -- so the 👤 always means a real session.
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [member, setMember] = useState(null);       // {ubn, firstName, lastName, email}
+  // The sign-in dialog: 'email' asks for the address, 'code' for the six digits it
+  // was mailed, 'account' is what a signed-in member sees instead.
+  const [showLogin, setShowLogin] = useState(false);
+  const [loginStep, setLoginStep] = useState('email');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginCode, setLoginCode] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState(null);
+  const [loginNotice, setLoginNotice] = useState(null);
+
+  // Open the sign-in dialog -- or the account panel, if there's already a session.
+  const openLogin = () => {
+    setLoginError(null);
+    setLoginNotice(null);
+    setLoginStep(loggedIn ? 'account' : 'email');
+    setShowLogin(true);
+  };
+
+  // Step 1: ask the server to mail a code. It answers the same way whether or not the
+  // address is a member (so the endpoint can't be used to test who is in the IBF), so
+  // this always advances to the code step -- a non-member simply never gets a mail.
+  const requestCode = async () => {
+    const address = loginEmail.trim();
+    if (!address) {
+      setLoginError('Enter your email address.');
+      return;
+    }
+    setLoginBusy(true);
+    setLoginError(null);
+    setLoginNotice(null);
+    try {
+      const form = new FormData();
+      form.append('email', address);
+      const res = await fetch(REQUEST_CODE_URL, { method: 'POST', body: form });
+      if (!res.ok) {
+        setLoginError(await errorMessage(
+          res, 'Could not send a code. Please try again.'));
+        return;
+      }
+      const data = await res.json();
+      setLoginNotice(data.message || 'Check your email for a six-digit code.');
+      setLoginCode('');
+      setLoginStep('code');
+    } catch (error) {
+      console.error('Request-code error:', error);
+      setLoginError('Could not reach the server. Please try again.');
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  // Step 2: exchange the code for a session. This is the ONLY place a session is
+  // created; `loggedIn` is set from the server's response and never from the click.
+  const submitCode = async () => {
+    setLoginBusy(true);
+    setLoginError(null);
+    try {
+      const form = new FormData();
+      form.append('email', loginEmail.trim());
+      form.append('code', loginCode.trim());
+      const res = await fetch(VERIFY_CODE_URL, { method: 'POST', body: form });
+      if (!res.ok) {
+        setLoginError(await errorMessage(
+          res, 'That code is not valid. Request a new one and try again.'));
+        return;
+      }
+      const data = await res.json();
+      storeSession(data.token);
+      setMember(data.member);
+      setLoggedIn(true);
+      setShowLogin(false);
+      setLoginCode('');
+      setLoginEmail('');
+    } catch (error) {
+      console.error('Verify-code error:', error);
+      setLoginError('Could not reach the server. Please try again.');
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  // Local only: the server's tokens are stateless and can't be revoked one at a time
+  // (see abi-server/auth.py), so signing out drops this browser's copy. The token
+  // stays technically valid until it expires, which is why it is deleted rather than
+  // merely forgotten in memory.
+  const signOut = () => {
+    storeSession(null);
+    setLoggedIn(false);
+    setMember(null);
+    setShowLogin(false);
+  };
+
+  // Restore a session on load, if this browser has a token. /auth/profile both validates
+  // it and returns the member, so a token that expired, was signed with a rotated
+  // secret, or belongs to someone since removed from the whitelist is dropped here
+  // rather than failing on some later request.
+  useEffect(() => {
+    const token = storedSession();
+    if (!token) return undefined;
+    let cancelled = false;
+    fetch(PROFILE_URL, { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => {
+        if (res.ok) return res.json();
+        if (res.status === 401 || res.status === 403) storeSession(null);
+        return null;
+      })
+      .then((data) => {
+        if (!cancelled && data && data.member) {
+          setMember(data.member);
+          setLoggedIn(true);
+        }
+      })
+      // Server down or offline: stay signed out but KEEP the token, so a transient
+      // outage doesn't silently sign everyone out.
+      .catch((e) => console.error('Session restore failed:', e));
+    return () => { cancelled = true; };
+  }, []);
 
   const acceptTerms = (value) => {
     setAccepted(value);
@@ -589,6 +771,7 @@ function App() {
         className="app-body"
         style={bgVariant ? { backgroundImage: `url(${bgVariant})` } : undefined}
       >
+        <LoginButton loggedIn={loggedIn} onClick={openLogin} />
         <InfoButton>
           <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
           <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
@@ -845,6 +1028,105 @@ function App() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sign-in dialog. Reuses the terms modal's shell so it matches the rest of the
+          site; only the fields inside are new. */}
+      {showLogin && (
+        <div className="terms-overlay" onClick={() => setShowLogin(false)}>
+          <div
+            className="terms-modal login-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="login-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {loginStep === 'account' ? (
+              <>
+                <h2 id="login-title">Signed in</h2>
+                <div className="login-body">
+                  <p className="login-who">
+                    {member ? `${member.firstName} ${member.lastName}`.trim() : ''}
+                  </p>
+                  {member?.email && <p className="login-sub">{member.email}</p>}
+                </div>
+                <div className="terms-actions">
+                  <button type="button" className="terms-secondary"
+                          onClick={() => setShowLogin(false)}>
+                    Close
+                  </button>
+                  <button type="button" onClick={signOut}>Sign out</button>
+                </div>
+              </>
+            ) : loginStep === 'email' ? (
+              <>
+                <h2 id="login-title">Sign in</h2>
+                <div className="login-body">
+                  <p>Enter the email address on your IBF membership and we&rsquo;ll
+                    send you a six-digit code.</p>
+                  <input
+                    className="login-input"
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') requestCode(); }}
+                    aria-label="Email address"
+                    autoFocus
+                  />
+                  {loginError && <p className="login-error">{loginError}</p>}
+                </div>
+                <div className="terms-actions">
+                  <button type="button" className="terms-secondary"
+                          onClick={() => setShowLogin(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" onClick={requestCode} disabled={loginBusy}>
+                    {loginBusy ? 'Sending…' : 'Send code'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 id="login-title">Enter your code</h2>
+                <div className="login-body">
+                  {loginNotice && <p className="login-notice">{loginNotice}</p>}
+                  <input
+                    className="login-input login-code"
+                    type="text"
+                    inputMode="numeric"
+                    // Lets a phone offer the code straight from the mail notification.
+                    autoComplete="one-time-code"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={loginCode}
+                    // Digits only: the field is six digits, and stripping anything
+                    // else keeps a pasted "code: 123456" from arriving as junk.
+                    onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && loginCode.length === 6) submitCode();
+                    }}
+                    aria-label="Six-digit code"
+                    autoFocus
+                  />
+                  {loginError && <p className="login-error">{loginError}</p>}
+                </div>
+                <div className="terms-actions">
+                  <button type="button" className="terms-secondary"
+                          onClick={() => { setLoginStep('email'); setLoginError(null); }}>
+                    Back
+                  </button>
+                  <button type="button" onClick={submitCode}
+                          disabled={loginBusy || loginCode.length !== 6}>
+                    {loginBusy ? 'Checking…' : 'Sign in'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
