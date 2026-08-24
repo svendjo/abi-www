@@ -944,3 +944,143 @@ button:disabled {
   box-shadow: none;
   color: #ffffff;
 }
+
+/* --- Reader spinner ------------------------------------------------------
+   A die tumbling in the middle of the screen while a read is in flight. Shown
+   the moment "Read scorecard" is pressed, before any dialog, so there is never
+   a stretch where the app looks idle but is working.
+
+   Two readers, one component: ABI (ours) first, then the hosted fallback if ABI
+   cannot find the grid. Both dice are black -- the wordmark on the face is what
+   tells them apart, not the colour, so the handoff reads as "same machine, second
+   opinion" rather than as an error state. */
+.reader-spinner-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;                 /* above the app, below nothing else -- no dialog
+                                    is open while this is up */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6rem;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(3px);
+  /* Without this the preserve-3d cube below is projected orthographically and reads
+     as flat squares turning, not as a die being thrown. 600px is roughly 7x the cube,
+     which gives depth without the exaggerated foreshortening a shorter distance adds. */
+  perspective: 600px;
+}
+
+.reader-die {
+  width: 88px;
+  height: 88px;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: reader-tumble 2.4s cubic-bezier(0.6, 0.05, 0.3, 0.95) infinite;
+}
+
+/* Two axes, and deliberately NOT a constant rate: a die that eases between
+   quarter-turns reads as being thrown, while a linear spin reads as a loading
+   GIF. The keyframes land on flat faces so the wordmark is legible in passing. */
+@keyframes reader-tumble {
+  0%   { transform: rotateX(0deg)    rotateY(0deg); }
+  25%  { transform: rotateX(-90deg)  rotateY(0deg); }
+  50%  { transform: rotateX(-90deg)  rotateY(90deg); }
+  75%  { transform: rotateX(-180deg) rotateY(90deg); }
+  100% { transform: rotateX(-360deg) rotateY(360deg); }
+}
+
+.reader-die-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 12px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: #0b0b0b;
+  border: 1px solid #2a2a2a;
+  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.06);
+}
+
+/* 88px cube -> translate by half the edge. */
+.reader-die-face.f-front  { transform: translateZ(44px); }
+.reader-die-face.f-back   { transform: rotateY(180deg) translateZ(44px); }
+.reader-die-face.f-right  { transform: rotateY(90deg)  translateZ(44px); }
+.reader-die-face.f-left   { transform: rotateY(-90deg) translateZ(44px); }
+.reader-die-face.f-top    { transform: rotateX(90deg)  translateZ(44px); }
+.reader-die-face.f-bottom { transform: rotateX(-90deg) translateZ(44px); }
+
+.reader-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f2f2f2;
+  align-self: center;
+  justify-self: center;
+}
+
+/* The wordmark replaces the ONE pip -- the only face with room for a word, and the
+   one whose absence leaves the die still reading as a die. Spans the whole 3x3 grid
+   rather than sitting in the centre cell, so ABI and GROK each fill the face at
+   their own length. */
+.reader-die-face.wordmark {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  place-items: center;
+  font-family: 'Courier New', ui-monospace, monospace;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #f2f2f2;
+  font-size: 1.15rem;
+}
+
+.reader-spinner-caption {
+  color: #f2f2f2;
+  font-size: 1rem;
+  text-align: center;
+  max-width: 30ch;
+  line-height: 1.5;
+}
+
+.reader-spinner-caption .sub {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+  color: #b9b9b9;
+}
+
+/* A tumbling cube is exactly the kind of motion this setting exists to stop.
+   Keep the die, drop the tumble, and breathe instead so it still reads as busy. */
+@media (prefers-reduced-motion: reduce) {
+  .reader-die {
+    animation: reader-pulse 1.8s ease-in-out infinite;
+    transform: rotateX(-20deg) rotateY(24deg);
+  }
+  @keyframes reader-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+}
+
+/* Offered under a read error when the hosted reader could still help but the player
+   isn't signed in. Deliberately a button, not a link: it opens the sign-in dialog. */
+.retry-offer-button {
+  margin-top: 0.9rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid #d4af37;
+  border-radius: 4px;
+  background: transparent;
+  color: #d4af37;
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.retry-offer-button:hover,
+.retry-offer-button:focus-visible {
+  background: #d4af37;
+  color: #101010;
+}

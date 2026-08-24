@@ -11,6 +11,7 @@ const BG_VARIANTS = [matrixTL, matrixTR, teethBT];
 
 // Server endpoints; the host comes from the active environment (see config.js).
 const READ_URL = `${apiBase}/read`;
+const RETRY_URL = `${apiBase}/retry`;
 const ACCEPT_URL = `${apiBase}/accept`;
 const DECLINE_URL = `${apiBase}/decline`;
 const SUBMIT_URL = `${apiBase}/feedback`;
@@ -280,6 +281,56 @@ const CameraIcon = () => (
 // way the camera button matches "Read scorecard"). Anchored by its right edge in
 // CSS, so it stays flush against the (i) and grows leftward when the label swaps
 // between the word and the signed-in 👤.
+// A tumbling die, centred over everything, for as long as a read is in flight.
+// `reader` is 'abi' or the fallback's name; only the wordmark face and the caption
+// change, because the two readers are the same operation from the player's side --
+// the second one is a second opinion, not an error.
+const ReaderSpinner = ({ reader }) => {
+  const grok = reader === 'grok';
+  // The wordmark takes the ONE face -- a single big pip is the one spot on a die
+  // with room for a word, and it leaves every other face a correct pip count. The
+  // opposite pairs still sum to seven: front(1)/back(6), right(3)/left(4),
+  // top(2)/bottom(5).
+  const faces = [
+    ['f-back', 6], ['f-right', 3], ['f-left', 4],
+    ['f-top', 2], ['f-bottom', 5],
+  ];
+  return (
+    <div className="reader-spinner-scrim" role="status" aria-live="polite">
+      <div className="reader-die">
+        {faces.map(([cls, pips]) => (
+          <div key={cls} className={`reader-die-face ${cls}`}>
+            {Array.from({ length: pips }, (_, i) => (
+              <span key={i} className="reader-pip" style={PIP_CELLS[pips][i]} />
+            ))}
+          </div>
+        ))}
+        <div className="reader-die-face f-front wordmark">{grok ? 'GROK' : 'ABI'}</div>
+      </div>
+      <p className="reader-spinner-caption">
+        {grok ? 'Asking Grok to take a look…' : 'Reading your scorecard…'}
+        {grok && (
+          <span className="sub">
+            Balut Vision couldn't find the grid, so the photo has been sent to xAI
+            for a second read.
+          </span>
+        )}
+      </p>
+    </div>
+  );
+};
+
+// Where each pip sits on a 3x3 face, by pip count -- the standard die layout.
+const PIP_CELLS = {
+  2: [{ gridArea: '1 / 1' }, { gridArea: '3 / 3' }],
+  3: [{ gridArea: '1 / 1' }, { gridArea: '2 / 2' }, { gridArea: '3 / 3' }],
+  4: [{ gridArea: '1 / 1' }, { gridArea: '1 / 3' }, { gridArea: '3 / 1' }, { gridArea: '3 / 3' }],
+  5: [{ gridArea: '1 / 1' }, { gridArea: '1 / 3' }, { gridArea: '2 / 2' },
+      { gridArea: '3 / 1' }, { gridArea: '3 / 3' }],
+  6: [{ gridArea: '1 / 1' }, { gridArea: '1 / 3' }, { gridArea: '2 / 1' },
+      { gridArea: '2 / 3' }, { gridArea: '3 / 1' }, { gridArea: '3 / 3' }],
+};
+
 const LoginButton = ({ loggedIn, onClick }) => (
   <button
     type="button"
@@ -361,6 +412,11 @@ function App() {
   // set from a verified server response -- /auth/verify on sign-in, or /auth/profile when
   // an existing token is restored below -- so the 👤 always means a real session.
   const [loggedIn, setLoggedIn] = useState(false);
+  // Which reader is on screen: null (idle), 'abi', or 'grok'. Drives the spinner.
+  const [reader, setReader] = useState(null);
+  // Set when ABI failed with something the fallback could still read, but the player
+  // isn't signed in -- /retry is members-only, so we offer the sign-in instead.
+  const [retryOffer, setRetryOffer] = useState(null);
   const [member, setMember] = useState(null);       // {ubn, firstName, lastName, email}
   // The sign-in dialog: 'email' asks for the address, 'code' for the six digits it
   // was mailed, 'account' is what a signed-in member sees instead.
@@ -435,6 +491,10 @@ function App() {
       setShowLogin(false);
       setLoginCode('');
       setLoginEmail('');
+      // They signed in BECAUSE a read needed the fallback -- so carry on with it.
+      // Otherwise they would have to press Read again, re-running the card we
+      // already know Balut Vision can't handle and spending a second rate-limit slot.
+      if (retryOffer) askFallback(retryOffer);
     } catch (error) {
       console.error('Verify-code error:', error);
       setLoginError('Could not reach the server. Please try again.');
@@ -590,13 +650,97 @@ function App() {
     }
   };
 
+  // Statuses where a second opinion is worth asking for. 409 = Balut Vision couldn't
+  // locate the grid, which is exactly what the hosted reader sidesteps; 500 = our own
+  // bug, cheap enough to try around. Everything else is final: 400 isn't an image, 422
+  // means the card genuinely isn't filled in, 429 would just be refused again, and 503
+  // is a deploy fault that should stay loud rather than be papered over with a paid API.
+  const RETRYABLE = [409, 500];
+
+  // Apply a successful read (from either reader) to all the view state.
+  const applyRead = (data) => {
+    setGrid(data.grid);
+    setEditable(data.editable);
+    setReadWarningCells(data.warning_cells || []);
+    setReadErrorCells(data.error_cells || []);
+    setEditWarningCells(data.warning_cells || []);
+    setEditErrorCells(data.error_cells || []);
+    // The fallback has no geometry stage, so it reports no rotation -- the preview
+    // then stays as the browser drew it, which is the best we can do.
+    setRotation(data.rotation || 0);
+    editSeededRef.current = false;
+    setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
+    setResultId(data.id);
+    setFeedbackMode('none');
+    setSubmitState('idle');
+    setFlowState('opened');
+    setShowResult(true);
+  };
+
+  // The server's error detail, whatever shape it arrived in.
+  const errorText = async (response) => {
+    let detail = null;
+    try {
+      detail = (await response.json()).detail;
+    } catch (e) {
+      /* non-JSON error body */
+    }
+    return typeof detail === 'string'
+      ? detail
+      : detail && typeof detail === 'object'
+      ? detail.message || JSON.stringify(detail)
+      : `The sheet could not be read (status ${response.status}).`;
+  };
+
+  // Which stored read a rejection belongs to. A failed /read still saved the photo,
+  // and returns its id in X-Result-Id so the fallback can work from it -- see the
+  // expose_headers note in abi-server. Null when the header is absent (an older
+  // server, or a failure so early nothing was stored).
+  const readIdFrom = (response) => response.headers.get('X-Result-Id');
+
+  // Second opinion on a read our own pipeline rejected. Members only, so the caller
+  // checks for a session first; the id is all the server needs, since it still has the
+  // photo from the /read that failed.
+  const askFallback = async (id) => {
+    setRetryOffer(null);
+    setReader('grok');
+    setStatus(null);
+    try {
+      const response = await fetch(RETRY_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${storedSession()}` },
+        body: new URLSearchParams({ id }),
+      });
+      if (!response.ok) {
+        // A token can expire between the read and the retry. Put the offer back so
+        // there is still a way forward, rather than a dead end saying "not signed in".
+        if (response.status === 401) setRetryOffer(id);
+        setStatus(await errorText(response));
+        return;
+      }
+      applyRead(await response.json());
+    } catch (error) {
+      console.error('Retry error:', error);
+      setStatus('The second reader could not be reached.');
+    } finally {
+      setReader(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!image) return;
 
     setLoading(true);
+    setReader('abi');
     setStatus(null);
     setGrid(null);
+    setRetryOffer(null);
 
+    // The ORIGINAL bytes go up, in whatever format the file picker handed us -- the
+    // canvas re-encode above only feeds the preview. The server reads anything Pillow
+    // decodes (JPEG, PNG, WebP, TIFF, ...), so the .jpg filename here is cosmetic and
+    // the blob keeps its own type. HEIC is the exception the server rejects, but iOS
+    // converts those to JPEG at the picker, so phone photos arrive readable.
     const formData = new FormData();
     const blob = dataURLtoBlob(image);
     formData.append('file', blob, 'image.jpg');
@@ -609,49 +753,39 @@ function App() {
 
       if (!response.ok) {
         // Show the server's error detail verbatim -- the backend scrubs it, so we
-        // don't inspect the error type here. `detail` is the message string; an
-        // object detail falls back to its `message`, then to a raw dump. That
-        // covers every case abi-server explains, including the 429 when /read has
-        // been called too often (its `{message, retry_after}` already says how long
-        // to wait in words) -- so a rate limit needs no code here beyond this note.
-        let detail = null;
-        try {
-          detail = (await response.json()).detail;
-        } catch (e) {
-          /* non-JSON error body */
+        // don't inspect the error type here. That covers every case abi-server
+        // explains, including the 429 when /read has been called too often (its
+        // `{message, retry_after}` already says how long to wait in words).
+        const message = await errorText(response);
+
+        // ...except that some failures are worth a second opinion. The server
+        // distinguishes them by STATUS, deliberately: an earlier design told them
+        // apart by the shape of `detail`, which put the rule in here where it would
+        // have broken silently the first time a message changed.
+        if (RETRYABLE.includes(response.status)) {
+          const id = readIdFrom(response);
+          if (id && loggedIn && storedSession()) {
+            await askFallback(id);
+            return;
+          }
+          if (id) {
+            // /retry is members-only. Rather than a dead end, offer the way through.
+            setRetryOffer(id);
+          }
         }
-        setStatus(
-          typeof detail === 'string'
-            ? detail
-            : detail && typeof detail === 'object'
-            ? detail.message || JSON.stringify(detail)
-            : `The sheet could not be read (status ${response.status}).`
-        );
+        setStatus(message);
         return;
       }
 
-      const data = await response.json();
-      setGrid(data.grid);
-      setEditable(data.editable);
-      // Both views start from the read's own issues; only the edit copy then tracks /verify.
-      setReadWarningCells(data.warning_cells || []);
-      setReadErrorCells(data.error_cells || []);
-      setEditWarningCells(data.warning_cells || []);
-      setEditErrorCells(data.error_cells || []);
-      setRotation(data.rotation || 0);
-      // Seed the editable copy now so the (always-mounted) edit panel has data.
-      // The seed matches the read, so don't re-verify it (its warnings came from /read).
-      editSeededRef.current = false;
-      setEditGrid(data.grid.map((row) => row.map((v) => (v === '' || v == null ? '' : String(v)))));
-      setResultId(data.id);
-      setFeedbackMode('none');
-      setSubmitState('idle');
-      setFlowState('opened');   // new read -> start the flow over
-      setShowResult(true);
+      // Both views start from the read's own issues; only the edit copy then tracks
+      // /verify. The editable copy is seeded here so the (always-mounted) edit panel
+      // has data; the seed matches the read, so it isn't re-verified.
+      applyRead(await response.json());
     } catch (error) {
       console.error('Error:', error);
       setStatus('The sheet could not be read at this time.');
     } finally {
+      setReader(null);
       setLoading(false);
     }
   };
@@ -771,11 +905,15 @@ function App() {
         className="app-body"
         style={bgVariant ? { backgroundImage: `url(${bgVariant})` } : undefined}
       >
+        {reader && <ReaderSpinner reader={reader} />}
         <LoginButton loggedIn={loggedIn} onClick={openLogin} />
         <InfoButton>
           <p><strong>Balut Eye</strong> reads the handwritten numbers off a photo of a Balut scorecard.</p>
-          <p>Accept the terms, upload a flat, well-lit <strong>JPG/JPEG</strong> photo where the
+          <p>Accept the terms, upload a flat, well-lit photo where the
             10&times;8 table fills the frame, then press <strong>Read Scorecard</strong>.</p>
+          <p>If <strong>Balut Vision</strong> can't line the card up, signed-in members get a
+            second attempt from <strong>Grok</strong>, which reads the photo directly. That
+            sends the picture — including the name header — to xAI.</p>
           <p>For the best read: <strong>fill the frame with the card, on a surface that contrasts
             with the scorecard</strong>, nothing else in shot, and hold the phone square-on above it
             rather than at an angle.</p>
@@ -822,6 +960,17 @@ function App() {
           <div className="result-bubble-container">
             <div className="result-bubble">
               <p className="result-bubble-text">{status}</p>
+              {/* Balut Vision couldn't read it, and a second reader might -- but that
+                  one is members-only. Offer the way through rather than a dead end. */}
+              {retryOffer && (
+                <button
+                  type="button"
+                  className="retry-offer-button"
+                  onClick={openLogin}
+                >
+                  Sign in for even more AI
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1162,6 +1311,8 @@ function App() {
                 otherwise have the right to upload each image and to transfer these
                 rights, and you should not upload images containing sensitive
                 personal information.</p>
+              <p>If we can&rsquo;t read your card, the photo may be sent to xAI for a
+                second attempt.</p>
 
               <h3>3. Acceptable use</h3>
               <p>You agree not to use the Service for any illegal or unlawful
