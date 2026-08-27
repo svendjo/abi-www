@@ -305,7 +305,9 @@ const ReaderSpinner = ({ reader }) => {
             ))}
           </div>
         ))}
-        <div className="reader-die-face f-front wordmark">{grok ? 'GROK' : 'ABI'}</div>
+        <div className={`reader-die-face f-front wordmark${grok ? '' : ' abi'}`}>
+          {grok ? 'GROK' : 'ABI'}
+        </div>
       </div>
       <p className="reader-spinner-caption">
         {grok ? 'Asking Grok to take a look…' : 'Reading your scorecard…'}

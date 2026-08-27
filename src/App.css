@@ -951,8 +951,12 @@ button:disabled {
    a stretch where the app looks idle but is working.
 
    Two readers, one component: ABI (ours) first, then the hosted fallback if ABI
-   cannot find the grid. Both dice are black -- the wordmark on the face is what
-   tells them apart, not the colour, so the handoff reads as "same machine, second
+   cannot find the grid.
+
+   Styled to match the 🎲 in every modal's top-left corner: ivory face, black pips.
+   The wordmark sits on the ONE face, which on a traditional die is the red pip --
+   so ABI's wordmark is red and inherits that, while the fallback's stays black. The
+   two dice are otherwise identical, so the handoff reads as "same machine, second
    opinion" rather than as an error state. */
 .reader-spinner-scrim {
   position: fixed;
@@ -997,13 +1001,39 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  padding: 12px;
+  padding: 13px;
   box-sizing: border-box;
-  border-radius: 12px;
-  background: #0b0b0b;
-  border: 1px solid #2a2a2a;
-  box-shadow: inset 0 0 18px rgba(255, 255, 255, 0.06);
+  /* Rounding a CSS cube is a trade-off, not a free choice: each face loses a
+     quarter-circle at every corner, and the eight holes that leaves look straight
+     through to the INSIDE of the far faces -- mirrored pips, which reads as a
+     rendering glitch. 14px is about as round as an 88px face goes before the gaps
+     become obvious; backface-visibility below hides what would show through. */
+  border-radius: 14px;
+  background: linear-gradient(150deg, #fffdf7 0%, #f2ece0 100%);
+  border: 1px solid #ded6c6;
+  /* A soft inner edge gives the ivory some body -- flat #fff reads as paper. */
+  box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.9),
+              inset 0 -3px 8px rgba(140, 125, 100, 0.18);
+  /* Never show a face from behind. Without this the corner gaps reveal the reversed
+     pips of the opposite face; with it they show the scrim, which reads as depth. */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
+
+/* A solid core, just inside the shell, so the corner gaps look into something ivory
+   rather than into empty space. Two perpendicular planes are enough to block every
+   corner sightline, and cost two elements instead of another six faces. */
+.reader-die::before,
+.reader-die::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 10px;
+  background: #f4eee2;
+}
+
+.reader-die::before { transform: rotateY(90deg); }
+.reader-die::after  { transform: rotateX(90deg); }
 
 /* 88px cube -> translate by half the edge. */
 .reader-die-face.f-front  { transform: translateZ(44px); }
@@ -1017,7 +1047,8 @@ button:disabled {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #f2f2f2;
+  background: #16130f;
+  box-shadow: inset 0 -1px 2px rgba(255, 255, 255, 0.25);
   align-self: center;
   justify-self: center;
 }
@@ -1033,8 +1064,13 @@ button:disabled {
   font-family: 'Courier New', ui-monospace, monospace;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #f2f2f2;
   font-size: 1.15rem;
+  color: #16130f;                    /* the fallback's wordmark: plain black */
+}
+
+/* ABI takes the red of the traditional one-pip, which is the face it replaces. */
+.reader-die-face.wordmark.abi {
+  color: #c62828;
 }
 
 .reader-spinner-caption {
