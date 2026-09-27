@@ -71,6 +71,37 @@ function storedSession() {
   }
 }
 
+// A signed-in member's settings (see abi-server/settings.py): kept in this browser --
+// one copy per device -- and sent with every /read while signed in. Keys match the
+// server's, so the object goes up as-is. The server applies them only for a valid
+// session; an anonymous read gets the defaults.
+const SETTINGS_KEY = 'balutEyeSettings';
+const DEFAULT_SETTINGS = {
+  // Strikes are read as zero in Score/Points columns (but may be disallowed through
+  // a user setting) -- this is that setting.
+  allow_score_points_strikes: true,
+  // Skip the orientation check for a photo wider than tall (~3 s faster). Off by
+  // default: wrong for portrait-format cards (BUDABAL, America's Cup) shot sideways.
+  assume_landscape: false,
+};
+
+function storedSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    return { ...DEFAULT_SETTINGS, ...(saved && typeof saved === 'object' ? saved : {}) };
+  } catch (e) {
+    return { ...DEFAULT_SETTINGS };   // storage unavailable or corrupt: defaults
+  }
+}
+
+function storeSettings(settings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) {
+    /* storage unavailable -- the setting just won't outlive the page */
+  }
+}
+
 function storeSession(token) {
   try {
     if (token) localStorage.setItem(SESSION_KEY, token);
@@ -420,6 +451,14 @@ function App() {
   // isn't signed in -- /retry is members-only, so we offer the sign-in instead.
   const [retryOffer, setRetryOffer] = useState(null);
   const [member, setMember] = useState(null);       // {ubn, firstName, lastName, email}
+  const [settings, setSettings] = useState(storedSettings);  // this device's settings
+  const updateSetting = (key, value) => {
+    setSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      storeSettings(next);
+      return next;
+    });
+  };
   // The sign-in dialog: 'email' asks for the address, 'code' for the six digits it
   // was mailed, 'account' is what a signed-in member sees instead.
   const [showLogin, setShowLogin] = useState(false);
@@ -655,7 +694,9 @@ function App() {
   // Statuses where a second opinion is worth asking for. 409 = Balut Vision couldn't
   // locate the grid, which is exactly what the hosted reader sidesteps; 500 = our own
   // bug, cheap enough to try around. Everything else is final: 400 isn't an image, 422
-  // means the card genuinely isn't filled in, 429 would just be refused again, and 503
+  // means the card genuinely isn't filled in (or has a Score/Points strike the member's
+  // settings disallow -- the fallback derives those columns, so it would paper over it),
+  // 429 would just be refused again, and 503
   // is a deploy fault that should stay loud rather than be papered over with a paid API.
   const RETRYABLE = [409, 500];
 
@@ -746,11 +787,16 @@ function App() {
     const formData = new FormData();
     const blob = dataURLtoBlob(image);
     formData.append('file', blob, 'image.jpg');
+    // Settings are a member feature: send them, with the session that entitles us to
+    // them, only while signed in. Signed out, /read uses its defaults.
+    const token = loggedIn ? storedSession() : null;
+    if (token) formData.append('settings', JSON.stringify(settings));
 
     try {
       const response = await fetch(READ_URL, {
         method: 'POST',
         body: formData,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
 
       if (!response.ok) {
@@ -1201,6 +1247,34 @@ function App() {
                     {member ? `${member.firstName} ${member.lastName}`.trim() : ''}
                   </p>
                   {member?.email && <p className="login-sub">{member.email}</p>}
+                  <h3 className="settings-title">Settings</h3>
+                  <label className="settings-toggle">
+                    <input
+                      type="checkbox"
+                      checked={settings.allow_score_points_strikes}
+                      onChange={(e) => updateSetting('allow_score_points_strikes', e.target.checked)}
+                    />
+                    <span>Allow strikes in Score/Points columns</span>
+                  </label>
+                  <p className="settings-help">
+                    {settings.allow_score_points_strikes
+                      ? 'A strike in the Score or Points column is read as 0.'
+                      : 'A card with a strike in the Score or Points column is refused -- write 0 there instead.'}
+                  </p>
+                  <label className="settings-toggle">
+                    <input
+                      type="checkbox"
+                      checked={settings.assume_landscape}
+                      onChange={(e) => updateSetting('assume_landscape', e.target.checked)}
+                    />
+                    <span>My photos are taken in landscape</span>
+                  </label>
+                  <p className="settings-help">
+                    {settings.assume_landscape
+                      ? 'A wide photo is taken as upright, so reads are about 3 seconds faster. Turn this off for portrait cards photographed sideways.'
+                      : 'Every photo is checked for which way up it is.'}
+                  </p>
+                  <p className="settings-help">Settings are saved on this device.</p>
                 </div>
                 <div className="terms-actions">
                   <button type="button" className="terms-secondary"

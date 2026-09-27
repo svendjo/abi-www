@@ -413,6 +413,33 @@ button:disabled {
   color: #cfe6bd;
 }
 
+/* Settings, in the signed-in dialog. */
+.settings-title {
+  margin: 1.1em 0 0.4em;
+  font-size: 1rem;
+  color: #6a9651;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  cursor: pointer;
+}
+
+.settings-toggle input {
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+  accent-color: #6a9651;
+}
+
+.settings-help {
+  margin: 0.4em 0 0;
+  font-size: 0.8rem;
+  color: #cccccc;
+}
+
 /* Result modal (read result + thumbs-up/down feedback) */
 .result-overlay {
   position: fixed;
