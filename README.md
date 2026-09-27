@@ -1,8 +1,8 @@
 # abi-www
 Website for Balut Eye — **https://baluteye.com**.
 
-Upload a photo of a 10×8 score sheet; the app sends it to `abi-server`, which
-reads the handwritten numbers and returns a 10×8 grid that is rendered as a table
+Upload a photo of an 8×10 score sheet; the app sends it to `abi-server`, which
+reads the handwritten numbers and returns an 8×10 grid that is rendered as a table
 (and saved server-side as a CSV). Signed-in members also get **settings** in the 👤 dialog
 (kept in the browser, one copy per device, and sent with each read — see abi-server's README).
 

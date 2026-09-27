@@ -117,7 +117,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Result table (6x7 grid) */
+/* Result table (the 8x10 grid) */
 .result-container {
   margin-bottom: 2rem;
   display: flex;
@@ -605,7 +605,7 @@ button:disabled {
   background: #9acb7a;
 }
 
-/* --- Phones: shrink the result dialogs so the full 10x8 grid fits the screen --- */
+/* --- Phones: shrink the result dialogs so the full 8x10 grid fits the screen --- */
 @media (max-width: 600px) {
   .result-overlay { padding: 6px; }
   .result-modal {

@@ -161,8 +161,10 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Heavier outline around the A6:H7 block -- the Score (col 6) and Jackpot (col 7)
-// columns, from the header row A down through the Balut row H. Same green as the
+// Heavier outline around the S0:J7 block -- the Score (S) and Jackpot (J) columns,
+// from the header row 0 down through the Balut row 7. (Cells are named column letter
+// Z A B C D S J P, then row number 0-9 -- see abi-server/scorecard.py; in code a cell
+// is the index pair r, c.) Same green as the
 // rest of the grid (yellow is reserved for warning highlights).
 function blockBorder(r, c) {
   if (r > 7 || (c !== 5 && c !== 6)) return undefined;
@@ -175,13 +177,13 @@ function blockBorder(r, c) {
   return style;
 }
 
-// The two totals rows carry a long label that needs a whole line: merge I1-I5
-// into one cell for "Total Score" and J1-J7 into one for "Points - Grand Total".
+// The two totals rows carry a long label that needs a whole line: merge Z8-D8
+// into one cell for "Total Score" and Z9-J9 into one for "Points - Grand Total".
 // `cellSpan` gives the colSpan of the surviving (first) cell; `isMergedAway` marks
 // the empty cells that span swallows so the render loop skips them.
 function cellSpan(r, c) {
-  if (r === 8 && c === 0) return 5;  // I1 covers I1-I5 ("Total Score")
-  if (r === 9 && c === 0) return 7;  // J1 covers J1-J7 ("Points - Grand Total")
+  if (r === 8 && c === 0) return 5;  // Z8 covers Z8-D8 ("Total Score")
+  if (r === 9 && c === 0) return 7;  // Z9 covers Z9-J9 ("Points - Grand Total")
   return undefined;
 }
 function isMergedAway(r, c) {
@@ -238,7 +240,7 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored, focusedCel
                     <>
                       <input
                         type="text"
-                        // The Points column (index 7: B8-H8, I8, J8) can be negative, and
+                        // The Points column (index 7: P1-P9) can be negative, and
                         // iOS's numeric pad has no minus key -- give it the standard
                         // keyboard (which does). Every other editable cell is unsigned.
                         inputMode={c === 7 ? 'text' : 'numeric'}
