@@ -3,14 +3,16 @@ Website for Balut Eye — **https://baluteye.com**.
 
 Upload a photo of a 10×8 score sheet; the app sends it to `abi-server`, which
 reads the handwritten numbers and returns a 10×8 grid that is rendered as a table
-(and saved server-side as a CSV).
+(and saved server-side as a CSV). Signed-in members also get **settings** in the 👤 dialog
+(kept in the browser, one copy per device, and sent with each read — see abi-server's README).
 
 The server URL lives in `src/config.js`, which picks an environment the way
 `abi-server`'s `APP_ENV` does: `npm start` selects `local-dev`
 (`http://localhost:8080`) and `npm run build` selects `aws-prod` (the App Runner
-URL). `src/App.js` derives `READ_URL` / `ACCEPT_URL` / `DECLINE_URL` / `SUBMIT_URL` /
-`VERIFY_URL` from that `apiBase`, so there is nothing to edit before a production
-build. Set `REACT_APP_ENV` to override (e.g. point a local `npm start` at prod).
+URL). `src/App.js` derives every endpoint from that `apiBase` — `READ_URL`,
+`RETRY_URL`, `ACCEPT_URL`, `DECLINE_URL`, `SUBMIT_URL` (`/feedback`), `VERIFY_URL`, and the
+sign-in trio `REQUEST_CODE_URL` / `VERIFY_CODE_URL` / `PROFILE_URL` — so there is nothing to
+edit before a production build. Set `REACT_APP_ENV` to override (e.g. point a local `npm start` at prod).
 
 ## Local
 Node / npm is already installed through homebrew. Install the website.
