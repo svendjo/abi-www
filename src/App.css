@@ -1147,3 +1147,198 @@ button:disabled {
   background: #d4af37;
   color: #101010;
 }
+
+/* --- Practice / Tournament tabs, and the tournament pages (Tournament.js) --- */
+.main-tabs, .tour-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 1.2rem;
+}
+.main-tabs button, .tour-tabs button {
+  background: rgba(0, 0, 0, 0.55);
+  color: #cfe6bd;
+  border: 1px solid #6a9651;
+  padding: 6px 16px;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.main-tabs button.on, .tour-tabs button.on {
+  background: #6a9651;
+  color: #fff;
+}
+.tour-panel {
+  width: 100%;
+  max-width: 900px;
+  background: rgba(0, 0, 0, 0.72);
+  border: 2px solid #6a9651;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  font-size: 1rem;
+  text-align: left;
+  box-sizing: border-box;
+}
+.tour-page { display: flex; flex-direction: column; gap: 12px; }
+.tour-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.tour-row select, .tour-input {
+  background: #10180c;
+  color: #fff;
+  border: 1px solid #6a9651;
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 1rem;
+  max-width: 100%;
+}
+.tour-input { width: 6rem; }
+.tour-input.wide { width: 14rem; }
+.tour-file { padding: 8px 14px; font-size: 0.95rem; cursor: pointer; }
+.tour-note { margin: 0; color: #cfe6bd; }
+.tour-faint { color: #9fb092; font-size: 0.85rem; }
+.tour-error { margin: 0; color: #ff8080; }
+.tour-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tour-card {
+  width: 100%;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #3d5a2e;
+  font-size: 0.9rem;
+}
+.tour-pill {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #3a3a3a;
+}
+.tour-pill.read { background: #1f6b52; }
+.tour-pill.review { background: #97621f; }
+.tour-pill.failed { background: #9c3838; }
+.tour-photo { max-width: 100%; max-height: 60vh; border: 1px solid #6a9651; }
+.tour-grid { border-collapse: collapse; margin: 4px 0; }
+.tour-grid caption { text-align: left; color: #cfe6bd; padding-bottom: 4px; }
+.tour-grid th { font-weight: normal; color: #9fb092; padding: 2px 6px; text-align: left; font-size: 0.85rem; }
+.tour-grid td { padding: 1px; }
+.tour-grid input {
+  width: 3rem;
+  background: #10180c;
+  color: #fff;
+  border: 1px solid #3d5a2e;
+  text-align: center;
+  font-size: 1rem;
+  padding: 4px 0;
+}
+.tour-scroll { overflow-x: auto; }
+.tour-standings { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.tour-standings th, .tour-standings td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #3d5a2e;
+  white-space: nowrap;
+  text-align: left;
+  background: rgba(16, 24, 12, 0.95);
+}
+.tour-standings th { color: #9fb092; font-weight: normal; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+/* On a phone the Players and Total columns stay put while the games scroll. */
+.tour-standings .sticky { position: sticky; left: 0; z-index: 1; }
+.tour-standings .sticky-right { position: sticky; right: 0; z-index: 1; }
+
+/* --- Desktop: the tournament pages use the width. The practice tab is untouched
+   (still the phone-first centred column). --- */
+.app-body.tournament-mode { justify-content: flex-start; padding-top: 48px; }
+.tour-h3 { margin: 4px 0; font-size: 0.95rem; color: #cfe6bd; font-weight: normal;
+  text-transform: uppercase; letter-spacing: 0.08em; }
+.tour-sheets { display: flex; gap: 24px; flex-wrap: wrap; }
+.tour-result { font-size: 1.1rem; }
+.tour-editor-cols { display: flex; flex-direction: column; gap: 16px; }
+.tour-standings td.num, .tour-standings th.num { text-align: right; }
+.tour-standings td.rank { color: #cfe6bd; font-weight: 600; }
+.tour-standings tbody tr:nth-child(even) td { background: rgba(28, 40, 22, 0.95); }
+.tour-standings tbody tr:hover td { background: rgba(60, 90, 46, 0.95); }
+.tour-standings td.total { font-size: 1.02em; }
+.triplet { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+.triplet b { color: #ffd633; font-weight: 600; }
+.triplet .dot { color: #6a9651; padding: 0 0.35em; }
+
+@media (min-width: 900px) {
+  .app-body.tournament-mode .tour-panel {
+    max-width: min(1500px, 96vw);
+    padding: 24px 28px;
+    font-size: 1.05rem;
+  }
+  .tour-standings { font-size: 1rem; }
+  .tour-standings th, .tour-standings td { padding: 10px 16px; }
+  .tour-standings th { font-size: 0.78rem; }
+  /* Review list: one aligned row per card. */
+  .tour-card {
+    display: grid;
+    grid-template-columns: 9rem 11rem minmax(12rem, 1fr) minmax(14rem, 1.6fr);
+    gap: 16px;
+    padding: 10px 14px;
+  }
+  /* Card editor: the photo beside the form, and it stays in view while scrolling. */
+  .tour-editor-cols { flex-direction: row; align-items: flex-start; gap: 28px; }
+  .tour-editor-photo { flex: 1 1 55%; position: sticky; top: 16px; }
+  .tour-editor-form { flex: 1 1 45%; display: flex; flex-direction: column; gap: 10px; }
+  .tour-photo { width: 100%; max-height: 85vh; object-fit: contain; }
+  .tour-grid input { width: 3.4rem; }
+}
+
+/* The practice page's global <button> look (big, uppercase, 200-400px, grows on
+   hover) is wrong for the dense tournament pages: reset it inside the panel. */
+.tour-panel button {
+  flex: none;
+  min-width: 0;
+  max-width: none;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+.tour-panel button:hover:not(:disabled) { transform: none; }
+.tour-tabs button { flex: 1; }
+.tour-panel .tour-card {
+  width: 100%;
+  text-transform: none;
+  font-weight: normal;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #3d5a2e;
+  border-radius: 6px;
+  padding: 10px 14px;
+  text-align: left;
+}
+.tour-panel .tour-card:hover:not(:disabled) { background: rgba(106, 150, 81, 0.35); box-shadow: none; }
+.tour-panel .tour-card .tour-pill { justify-self: start; }
+.tour-panel .result-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+/* The tournament pages scroll, so the copyright line follows the content rather
+   than sitting fixed on top of it. */
+.app-body.tournament-mode .copyright { position: static; transform: none; margin-top: 12px; }
+.tour-remove { padding: 4px 10px !important; background: transparent !important; color: #ff8080 !important;
+  border: 1px solid #9c3838 !important; text-transform: none; }
+.tour-add { align-self: flex-start; background: transparent !important; color: #cfe6bd !important;
+  border: 1px solid #6a9651 !important; text-transform: none; }
+
+/* Explanations at the top of each tournament page. */
+.tour-help {
+  background: rgba(106, 150, 81, 0.12);
+  border-left: 3px solid #6a9651;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #dbe9d0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 80ch;
+}
+.tour-help p { margin: 0; }
+.tour-help code { background: rgba(0, 0, 0, 0.4); padding: 0 4px; border-radius: 3px; }
+/* Review editor: set the jackpot column apart from the four games by a gap as wide
+   as one cell column (the input width plus the cell's own padding). */
+.tour-grid .jcol { padding-left: calc(3rem + 2px); }
+@media (min-width: 900px) {
+  .tour-grid .jcol { padding-left: calc(3.4rem + 2px); }
+}

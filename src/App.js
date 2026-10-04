@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { apiBase } from './config';
+import Tournament from './Tournament';
 import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
 import teethBT from './assets/background-teeth-bt.jpg';
@@ -10,12 +11,12 @@ import teethBT from './assets/background-teeth-bt.jpg';
 const BG_VARIANTS = [matrixTL, matrixTR, teethBT];
 
 // Server endpoints; the host comes from the active environment (see config.js).
-const READ_URL = `${apiBase}/read`;
-const RETRY_URL = `${apiBase}/retry`;
-const ACCEPT_URL = `${apiBase}/accept`;
-const DECLINE_URL = `${apiBase}/decline`;
-const SUBMIT_URL = `${apiBase}/feedback`;
-const VERIFY_URL = `${apiBase}/verify`;
+const READ_URL = `${apiBase}/practice/read`;
+const RETRY_URL = `${apiBase}/practice/retry`;
+const ACCEPT_URL = `${apiBase}/practice/accept`;
+const DECLINE_URL = `${apiBase}/practice/decline`;
+const SUBMIT_URL = `${apiBase}/practice/feedback`;
+const VERIFY_URL = `${apiBase}/practice/verify`;
 const REQUEST_CODE_URL = `${apiBase}/auth/request-code`;
 const VERIFY_CODE_URL = `${apiBase}/auth/verify`;
 const PROFILE_URL = `${apiBase}/auth/profile`;
@@ -447,6 +448,10 @@ function App() {
   // set from a verified server response -- /auth/verify on sign-in, or /auth/profile when
   // an existing token is restored below -- so the 👤 always means a real session.
   const [loggedIn, setLoggedIn] = useState(false);
+  // The two tabs: 'practice' (read one card well -- everything built so far) and
+  // 'tournament' (read every card; see Tournament.js). The info and sign-in buttons
+  // and the terms sit outside the tabs.
+  const [tab, setTab] = useState('practice');
   // Which reader is on screen: null (idle), 'abi', or 'grok'. Drives the spinner.
   const [reader, setReader] = useState(null);
   // Set when ABI failed with something the fallback could still read, but the player
@@ -952,7 +957,7 @@ function App() {
   return (
     <div className="App">
       <div
-        className="app-body"
+        className={`app-body${tab === 'tournament' ? ' tournament-mode' : ''}`}
         style={bgVariant ? { backgroundImage: `url(${bgVariant})` } : undefined}
       >
         {reader && <ReaderSpinner reader={reader} />}
@@ -973,7 +978,19 @@ function App() {
             shown as <code>x</code>. The Score and Points columns take no strike.</p>
         </InfoButton>
         <h1>Balut Eye</h1>
+        <div className="main-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === 'practice'}
+                  className={tab === 'practice' ? 'on' : ''} onClick={() => setTab('practice')}>
+            Practice
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'tournament'}
+                  className={tab === 'tournament' ? 'on' : ''} onClick={() => setTab('tournament')}>
+            Tournament
+          </button>
+        </div>
+        {tab === 'practice' && (
         <p className="tagline">Take a photo of a Balut scorecard.</p>
+        )}
 
         <div className="terms-acceptance">
           <input
@@ -994,6 +1011,12 @@ function App() {
           </span>
         </div>
 
+        {tab === 'tournament' && (
+          <Tournament token={loggedIn ? storedSession() : null} onSignIn={openLogin} />
+        )}
+
+        {tab === 'practice' && (
+        <>
         <div className="controls-container">
           {/* Camera button: capture="environment" opens the rear camera directly on mobile;
               on desktop the browser ignores capture and falls back to a file picker. */}
@@ -1023,6 +1046,9 @@ function App() {
               )}
             </div>
           </div>
+        )}
+
+        </>
         )}
 
         <div className="copyright">© {new Date().getFullYear()} S.K.J. All rights reserved. v1.0</div>
