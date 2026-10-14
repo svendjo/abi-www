@@ -456,17 +456,18 @@ function UprightPhoto({ src, rotation }) {
 
 function Standings({ token, tournament }) {
   const [day, setDay] = useState(tournament.days[0].day);
+  const [throwaway, setThrowaway] = useState(false);
   const [table, setTable] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let live = true;
-    const load = () => post('standings', token, { tournament: tournament.id, day })
+    const load = () => post('standings', token, { tournament: tournament.id, day, throwaway })
       .then((b) => { if (live) setTable(b); }).catch((e) => live && setError(e.message));
     load();
     const id = setInterval(load, 15000);   // live during the tournament
     return () => { live = false; clearInterval(id); };
-  }, [token, tournament.id, day]);
+  }, [token, tournament.id, day, throwaway]);
 
   return (
     <div className="tour-page">
@@ -477,6 +478,12 @@ function Standings({ token, tournament }) {
           ))}
         </select>
       </div>
+      {tournament.throwaway && (
+        <label className="settings-toggle">
+          <input type="checkbox" checked={throwaway} onChange={(e) => setThrowaway(e.target.checked)} />
+          <span>Throwaway card: leave out each player&rsquo;s worst game of the day</span>
+        </label>
+      )}
       <div className="tour-help">
         <p>Each day is ranked on its own; pick another day from the list above. Every cell
           is a game&rsquo;s result: <strong>points · score · baluts</strong>, and Total adds
@@ -485,6 +492,11 @@ function Standings({ token, tournament }) {
           first. Players equal on all three share a rank. A game that hasn&rsquo;t been
           read yet shows as &ldquo;not read yet&rdquo; and counts as nothing, so the table
           fills in as the cards are read.</p>
+        {tournament.throwaway && (
+          <p>With <strong>Throwaway card</strong> on, each player&rsquo;s worst game of the
+            day (fewest points, then lowest score, then fewest baluts) is struck out and left
+            out of Total. A game not read yet counts as the worst.</p>
+        )}
       </div>
       {error && <p className="tour-error">{error}</p>}
       {table && !table.rows.length && <p className="tour-note">No results yet.</p>}
@@ -504,7 +516,10 @@ function Standings({ token, tournament }) {
                   <td className="num rank">{r.rank}</td>
                   <td className="sticky">{r.names.join(' & ')}<br /><span className="tour-faint">{r.ubns.join(' & ') || r.key}</span></td>
                   {r.games.map((g, i) => (
-                    <td key={i} className="num">{g ? <Triplet r={g} /> : <span className="tour-faint">not read yet</span>}</td>
+                    <td key={i} className={i === r.discarded ? 'num discarded' : 'num'}
+                      title={i === r.discarded ? 'Throwaway card: not counted' : undefined}>
+                      {g ? <Triplet r={g} /> : <span className="tour-faint">not read yet</span>}
+                    </td>
                   ))}
                   <td className="sticky-right num total"><Triplet r={r.total} /></td>
                 </tr>

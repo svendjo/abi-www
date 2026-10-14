@@ -1260,6 +1260,7 @@ button:disabled {
 .tour-standings tbody tr:nth-child(even) td { background: rgba(28, 40, 22, 0.95); }
 .tour-standings tbody tr:hover td { background: rgba(60, 90, 46, 0.95); }
 .tour-standings td.total { font-size: 1.02em; }
+.tour-standings td.discarded { color: #7d8a74; text-decoration: line-through; }
 .triplet { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
 .triplet b { color: #ffd633; font-weight: 600; }
 .triplet .dot { color: #6a9651; padding: 0 0.35em; }
