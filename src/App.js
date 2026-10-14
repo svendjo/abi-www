@@ -4,11 +4,11 @@ import { apiBase } from './config';
 import Tournament from './Tournament';
 import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
-import teethBT from './assets/background-teeth-bt.jpg';
 
 // Backgrounds the "glitch" flicks to (see the glitch effect below). The default
 // background.jpg lives in CSS and isn't in here -- these are the brief overrides.
-const BG_VARIANTS = [matrixTL, matrixTR, teethBT];
+// background-teeth-bt.jpg is kept in assets but out of the rotation.
+const BG_VARIANTS = [matrixTL, matrixTR];
 
 // Server endpoints; the host comes from the active environment (see config.js).
 const READ_URL = `${apiBase}/practice/read`;
