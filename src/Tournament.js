@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiBase } from './config';
 
 const T = `${apiBase}/tournament`;
-const GAME_KEY = 'balutEyeTournamentGame';      // the sticky game drop-down
 const ROWS = [1, 2, 3, 4, 5, 6, 7];
 const ROW_NAMES = ["4's", "5's", "6's", 'Straight', 'Full House', 'Choice', 'Balut'];
 const COLS = ['A', 'B', 'C', 'D', 'J'];
@@ -34,13 +33,10 @@ async function post(path, token, fields) {
   return res.json();
 }
 
-function loadGame() {
-  try { return JSON.parse(localStorage.getItem(GAME_KEY) || 'null'); } catch (e) { return null; }
-}
-
-function saveGame(value) {
-  try { localStorage.setItem(GAME_KEY, JSON.stringify(value)); } catch (e) { /* fine */ }
-}
+// The tournament and game picked on this visit. Kept in memory only, so they survive
+// switching between Upload, Review and Standings, but a fresh visit starts with
+// nothing selected: no card is ever uploaded to a game nobody chose.
+let picked = { tid: null, game: null };
 
 // points · score · baluts -- the ranking order, everywhere.
 const triplet = (r) => (r ? `${r.points} · ${r.score} · ${r.baluts}` : '');
@@ -55,7 +51,7 @@ const Triplet = ({ r }) => (
 function Tournament({ token, onSignIn }) {
   const [list, setList] = useState(null);
   const [organizer, setOrganizer] = useState(false);
-  const [tid, setTid] = useState(null);
+  const [tid, setTid] = useState(picked.tid);
   const [page, setPage] = useState('standings');
   const [needsReview, setNeedsReview] = useState(0);
   const [error, setError] = useState(null);
@@ -65,9 +61,6 @@ function Tournament({ token, onSignIn }) {
     post('list', token).then((body) => {
       setList(body.tournaments);
       setOrganizer(body.organizer);
-      const sticky = loadGame();
-      const first = body.tournaments.find((t) => t.id === sticky?.tid) || body.tournaments[0];
-      setTid(first ? first.id : null);
       if (body.organizer) setPage('upload');
     }).catch((e) => setError(e.message));
   }, [token]);
@@ -89,7 +82,9 @@ function Tournament({ token, onSignIn }) {
   return (
     <div className="tour-panel">
       <div className="tour-row">
-        <select value={tid || ''} onChange={(e) => setTid(e.target.value)} aria-label="Tournament">
+        <select value={tid || ''} aria-label="Tournament"
+                onChange={(e) => { setTid(e.target.value); picked = { tid: e.target.value, game: null }; }}>
+          <option value="" disabled>Select a tournament</option>
           {list.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
@@ -107,7 +102,7 @@ function Tournament({ token, onSignIn }) {
       </div>
       )}
       {tournament && page === 'upload' && (
-        <Upload token={token} tournament={tournament} onCounts={setNeedsReview} />
+        <Upload key={tournament.id} token={token} tournament={tournament} onCounts={setNeedsReview} />
       )}
       {tournament && page === 'review' && (
         <Review token={token} tournament={tournament} onCounts={setNeedsReview} />
@@ -120,17 +115,14 @@ function Tournament({ token, onSignIn }) {
 // --- Upload -------------------------------------------------------------------------
 
 function Upload({ token, tournament, onCounts }) {
-  const games = tournament.days.flatMap((d) => d.games);
-  const sticky = loadGame();
-  const [game, setGame] = useState(
-    sticky?.tid === tournament.id && games.some((g) => g.number === sticky.game)
-      ? sticky.game : games[0].number);
+  const [game, setGame] = useState(picked.tid === tournament.id ? picked.game : null);
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
   const [counts, setCounts] = useState({});
 
   const refresh = useCallback(() => {
+    if (game === null) return;
     post('cards', token, { tournament: tournament.id, game, status: 'none' })
       .then((b) => { setCounts(b.counts); onCounts(b.needs_review); })
       .catch(() => {});
@@ -144,7 +136,7 @@ function Upload({ token, tournament, onCounts }) {
 
   const pickGame = (n) => {
     setGame(n);
-    saveGame({ tid: tournament.id, game: n });
+    picked = { tid: tournament.id, game: n };
   };
 
   const upload = async () => {
@@ -177,7 +169,7 @@ function Upload({ token, tournament, onCounts }) {
       <div className="tour-help">
         <p>Collect a round at a time: pick the <strong>game</strong> the cards were played in,
           then photograph every card from that game. The game you pick is the card&rsquo;s game,
-          and it stays selected until you change it.</p>
+          and it stays selected until you change it or leave the page.</p>
         <p><strong>Camera</strong> takes one photo with the phone&rsquo;s camera.
           <strong> Photos</strong> picks one or more photos you took earlier.
           <strong> Upload scorecard</strong> sends them; it returns as soon as each photo is
@@ -186,7 +178,8 @@ function Upload({ token, tournament, onCounts }) {
           cards as they are read; any that need a person go to <strong>Review</strong>.</p>
       </div>
       <div className="tour-row">
-        <select value={game} onChange={(e) => pickGame(Number(e.target.value))} aria-label="Game">
+        <select value={game ?? ''} onChange={(e) => pickGame(Number(e.target.value))} aria-label="Game">
+          <option value="" disabled>Select a game</option>
           {tournament.days.flatMap((d) => d.games).map((g) => (
             <option key={g.number} value={g.number}>{g.label}</option>
           ))}
@@ -203,14 +196,16 @@ function Upload({ token, tournament, onCounts }) {
           <input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
                  onChange={(e) => setFiles(Array.from(e.target.files || []))} />
         </label>
-        <button type="button" onClick={upload} disabled={!files.length || busy}>
+        <button type="button" onClick={upload} disabled={!files.length || busy || game === null}>
           {busy ? 'Uploading…' : files.length > 1 ? `Upload ${files.length} scorecards` : 'Upload scorecard'}
         </button>
       </div>
       {message && <p className="tour-note">{message}</p>}
-      <p className="tour-note">
-        This game: {total} uploaded · {counts.read || 0} read · {(counts.review || 0) + (counts.failed || 0)} need review · {(counts.uploaded || 0) + (counts.reading || 0)} in queue
-      </p>
+      {game === null ? <p className="tour-note">Select a game before uploading.</p> : (
+        <p className="tour-note">
+          This game: {total} uploaded · {counts.read || 0} read · {(counts.review || 0) + (counts.failed || 0)} need review · {(counts.uploaded || 0) + (counts.reading || 0)} in queue
+        </p>
+      )}
     </div>
   );
 }
