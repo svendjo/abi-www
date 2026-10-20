@@ -108,7 +108,7 @@ function Tournament({ token, onSignIn }) {
       {tournament && page === 'review' && (
         <Review token={token} tournament={tournament} onCounts={setNeedsReview} />
       )}
-      {tournament && page === 'standings' && <Standings token={token} tournament={tournament} />}
+      {tournament && page === 'standings' && <Standings token={token} tournament={tournament} organizer={organizer} />}
     </div>
   );
 }
@@ -442,7 +442,7 @@ function UprightPhoto({ src, rotation }) {
 
 // --- Standings ----------------------------------------------------------------------
 
-function Standings({ token, tournament }) {
+function Standings({ token, tournament, organizer }) {
   const [day, setDay] = useState(tournament.days[0].day);
   const [throwaway, setThrowaway] = useState(false);
   const [table, setTable] = useState(null);
@@ -486,6 +486,7 @@ function Standings({ token, tournament }) {
             out of Total. A game not read yet counts as the worst.</p>
         )}
       </div>
+      {organizer && <SubmitToAC token={token} tournament={tournament} />}
       {error && <p className="tour-error">{error}</p>}
       {table && !table.rows.length && <p className="tour-note">No results yet.</p>}
       {table && table.rows.length > 0 && (
@@ -515,6 +516,38 @@ function Standings({ token, tournament }) {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+// Organizers only: the tournament's one double game, as a CSV, uploaded and confirmed
+// at AC (balutscore.com). The server refuses until every card of that game is done.
+function SubmitToAC({ token, tournament }) {
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+  const [error, setError] = useState(null);
+
+  const submit = () => {
+    if (!window.confirm(`Submit the double game of ${tournament.name} to AC?`)) return;
+    setBusy(true); setDone(null); setError(null);
+    post('submit-double', token, { tournament: tournament.id })
+      .then(setDone).catch((e) => setError(e.message)).finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="tour-row">
+      <button type="button" onClick={submit} disabled={busy}>
+        {busy ? 'Submitting…' : 'Submit double game to AC'}
+      </button>
+      {error && <p className="tour-error">{error}</p>}
+      {done && (
+        <p className="tour-note">
+          Game {done.game}: {done.rows} players sent to AC as {done.filename}
+          {done.status ? ` (${done.status})` : ''}.
+          {done.duplicate ? ' AC says it already had this sheet.' : ''}
+          {done.flags.length ? ` AC flagged ${done.flags.length} thing(s) to check.` : ''}
+        </p>
       )}
     </div>
   );
