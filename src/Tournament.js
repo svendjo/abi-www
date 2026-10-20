@@ -524,22 +524,49 @@ function Standings({ token, tournament, organizer }) {
 // Organizers only: the tournament's one double game, as a CSV, uploaded and confirmed
 // at AC (balutscore.com). The server refuses until every card of that game is done.
 function SubmitToAC({ token, tournament }) {
+  const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);
   const [error, setError] = useState(null);
+  const doubles = tournament.days.flatMap((d) => d.games.filter((g) => g.type === 'double')
+    .map((g) => ({ ...g, date: new Date(`${d.date}T12:00:00`) })));
+  const game = doubles.length === 1 ? doubles[0] : null;
 
   const submit = () => {
-    if (!window.confirm(`Submit the double game of ${tournament.name} to AC?`)) return;
-    setBusy(true); setDone(null); setError(null);
+    setAsking(false); setBusy(true); setDone(null); setError(null);
     post('submit-double', token, { tournament: tournament.id })
       .then(setDone).catch((e) => setError(e.message)).finally(() => setBusy(false));
   };
 
   return (
     <div className="tour-row">
-      <button type="button" onClick={submit} disabled={busy}>
+      <button type="button" onClick={() => setAsking(true)} disabled={busy}>
         {busy ? 'Submitting…' : 'Submit double game to AC'}
       </button>
+      {asking && (
+        <div className="terms-overlay" onClick={() => setAsking(false)}>
+          <div className="terms-modal login-modal" role="dialog" aria-modal="true"
+               aria-labelledby="ac-title" onClick={(e) => e.stopPropagation()}>
+            <h2 id="ac-title">Submit to AC</h2>
+            <div className="login-body">
+              <p>Send the double game{game ? ` (Game ${game.number})` : ''} of <strong>{tournament.name}</strong> to
+                AC at balutscore.com, and confirm it there?</p>
+              {game && (
+                <p className="login-sub">
+                  {tournament.branch || 'No branch set'} ·{' '}
+                  {game.date.toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+            <div className="terms-actions">
+              <button type="button" className="terms-secondary" onClick={() => setAsking(false)}>
+                Cancel
+              </button>
+              <button type="button" onClick={submit}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
       {error && <p className="tour-error">{error}</p>}
       {done && (
         <p className="tour-note">
