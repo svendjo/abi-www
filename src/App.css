@@ -1192,7 +1192,6 @@ button:disabled {
 }
 .tour-input { width: 6rem; }
 .tour-input.wide { width: 14rem; }
-.tour-file { padding: 8px 14px; font-size: 0.95rem; cursor: pointer; }
 .tour-note { margin: 0; color: #cfe6bd; }
 .tour-faint { color: #9fb092; font-size: 0.85rem; }
 .tour-error { margin: 0; color: #ff8080; }

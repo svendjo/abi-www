@@ -4,6 +4,7 @@
 // here reads a card -- the photo goes straight to S3 and the worker reads it.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiBase } from './config';
+import { CameraButton, PhotosButton } from './PhotoButtons';
 
 const T = `${apiBase}/tournament`;
 const ROWS = [1, 2, 3, 4, 5, 6, 7];
@@ -172,7 +173,7 @@ function Upload({ token, tournament, onCounts }) {
           and it stays selected until you change it or leave the page.</p>
         <p><strong>Camera</strong> takes one photo with the phone&rsquo;s camera.
           <strong> Photos</strong> picks one or more photos you took earlier.
-          <strong> Upload scorecard</strong> sends them; it returns as soon as each photo is
+          <strong> Upload Scorecard(s)</strong> sends them; it returns as soon as each photo is
           stored, so you can carry on with the next card straight away.</p>
         <p>Each card is then read in the background. The line below counts this game&rsquo;s
           cards as they are read; any that need a person go to <strong>Review</strong>.</p>
@@ -186,18 +187,10 @@ function Upload({ token, tournament, onCounts }) {
         </select>
       </div>
       <div className="tour-row">
-        <label className="camera-button tour-file" title="Take a photo">
-          Camera
-          <input type="file" accept="image/*" capture="environment" hidden
-                 onChange={(e) => setFiles(Array.from(e.target.files || []))} />
-        </label>
-        <label className="camera-button tour-file" title="Choose photos">
-          Photos
-          <input type="file" accept="image/jpeg,image/png,image/webp" multiple hidden
-                 onChange={(e) => setFiles(Array.from(e.target.files || []))} />
-        </label>
+        <CameraButton onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+        <PhotosButton onChange={(e) => setFiles(Array.from(e.target.files || []))} />
         <button type="button" onClick={upload} disabled={!files.length || busy || game === null}>
-          {busy ? 'Uploading…' : files.length > 1 ? `Upload ${files.length} scorecards` : 'Upload scorecard'}
+          {busy ? 'Uploading…' : 'Upload Scorecard(s)'}
         </button>
       </div>
       {message && <p className="tour-note">{message}</p>}

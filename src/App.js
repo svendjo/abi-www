@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { apiBase } from './config';
 import Tournament from './Tournament';
+import { CameraButton } from './PhotoButtons';
 import matrixTL from './assets/background-matrix-tl.jpg';
 import matrixTR from './assets/background-matrix-tr.jpg';
 
@@ -284,31 +285,6 @@ const EditableTable = ({ editGrid, editable, onCell, warned, errored, focusedCel
     </table>
   );
 };
-
-// Outline camera icon for the capture button, replacing the 📷 emoji (which rendered
-// as a different picture on every platform and couldn't take the button's colour).
-// Strokes use currentColor, so it inherits the button's text colour on hover too.
-const CameraIcon = () => (
-  <svg
-    className="camera-icon"
-    viewBox="0 0 24 24"
-    width="32"
-    height="32"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.9"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-    focusable="false"
-  >
-    {/* Body with the raised shutter housing on top */}
-    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-    <circle cx="12" cy="13.5" r="4.3" />
-    {/* Flash bulb -- filled, so it reads as a dot rather than a tiny ring */}
-    <circle cx="18.2" cy="9.8" r="0.9" fill="currentColor" stroke="none" />
-  </svg>
-);
 
 // Login control -- top-right of the main page, immediately left of the (i) badge.
 // Shares the badge's outlined-dark treatment so the corner reads as one group (the
@@ -1018,12 +994,7 @@ function App() {
         {tab === 'practice' && (
         <>
         <div className="controls-container">
-          {/* Camera button: capture="environment" opens the rear camera directly on mobile;
-              on desktop the browser ignores capture and falls back to a file picker. */}
-          <label className="camera-button" title="Take a photo" aria-label="Take a photo with the camera">
-            <CameraIcon />
-            <input type="file" accept="image/*" capture="environment" onChange={handleImageUpload} hidden />
-          </label>
+          <CameraButton onChange={handleImageUpload} />
           <button onClick={handleSubmit} disabled={!image || loading || !accepted}>
             {loading ? 'Reading…' : 'Read scorecard'}
           </button>
